@@ -63,7 +63,7 @@
           新增知识点
         </el-button>
         <el-upload
-          :action="`/upload/image`"
+          :action="`/kb/upload/image`"
           :http-request="uploadImage"
           accept="image/*,video/*"
           :show-file-list="false"
@@ -74,7 +74,7 @@
           </el-button>
         </el-upload>
         <el-upload
-          :action="`/collections/final_chunk_knowledge_v1.1/import`"
+          :action="`/kb/collections/final_chunk_knowledge_v1.1/import`"
           :http-request="importData"
           accept=".json"
           :show-file-list="false"
@@ -296,7 +296,7 @@
           >
             <template #append>
               <el-upload
-                :action="`/upload/image`"
+                :action="`/kb/upload/image`"
                 :http-request="uploadImage"
                 accept="image/*,video/*"
                 :show-file-list="false"
@@ -327,7 +327,7 @@
 import { ref, reactive, onMounted, nextTick, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { useRouter } from 'vue-router';
-import http from '@/api/http2';
+import http from '@/api/http';
 import { QuestionFilled, Plus } from '@element-plus/icons-vue'; // 确保引入图标
 // import { useUserStore } from '@/stores/user';
 
@@ -388,7 +388,7 @@ const goToUserManagement = () => {
 // 获取动态选项
 const fetchOptions = async () => {
   try {
-    const response = await http.get('/collections/final_chunk_knowledge_v1.1/stats');
+    const response = await http.get('/kb/collections/final_chunk_knowledge_v1.1/stats');
     const fieldStats = response.data.field_stats;
     categoryOptions.value = fieldStats.category?.sample_values || [];
   } catch (error) {
@@ -400,7 +400,7 @@ const fetchOptions = async () => {
 // 获取总数
 const fetchTotalCount = async () => {
   try {
-    const response = await http.get('/collections/final_chunk_knowledge_v1.1/count');
+    const response = await http.get('/kb/collections/final_chunk_knowledge_v1.1/count');
     total.value = response.data.count;
   } catch (error) {
     console.warn('无法获取总数');
@@ -428,7 +428,7 @@ const fetchChunks = async (cursor = null, pageNum = null) => {
 
     console.log('请求参数:', params);
 
-    const response = await http.get(`/collections/final_chunk_knowledge_v1.1/points`, { params });
+    const response = await http.get(`/kb/collections/final_chunk_knowledge_v1.1/points`, { params });
     const resData = response.data;
 
     // 1. 更新表格数据
@@ -533,7 +533,7 @@ const searchChunks = async () => {
   
   loading.value = true;
   try {
-    const response = await http.post(`/collections/final_chunk_knowledge_v1.1/search`, {
+    const response = await http.post(`/kb/collections/final_chunk_knowledge_v1.1/search`, {
       query: searchQuery.value,
       limit: pageSize.value,
       score_threshold: 0.5,
@@ -625,7 +625,7 @@ const checkSimilarity = async () => {
     };
 
     const res = await http.post(
-      `/collections/final_chunk_knowledge_v1.1/check_similarity`,
+      `/kb/collections/final_chunk_knowledge_v1.1/check_similarity`,
       { requestBody }
     );
 
@@ -697,13 +697,13 @@ Chunk ID: ${chunk_id}
 
     if (form.id) {
       await http.put(
-        `/collections/final_chunk_knowledge_v1.1/points/${form.id}`,
+        `/kb/collections/final_chunk_knowledge_v1.1/points/${form.id}`,
         requestBody
       );
       ElMessage.success('更新成功');
     } else {
       const res = await http.post(
-        `/collections/final_chunk_knowledge_v1.1/points`,
+        `/kb/collections/final_chunk_knowledge_v1.1/points`,
         requestBody
       );
       ElMessage.success('创建成功');
@@ -733,7 +733,7 @@ const deleteChunk = (id) => {
   }).then(async () => {
     loading.value = true;
     try {
-      await http.delete(`/collections/final_chunk_knowledge_v1.1/points/${id}`);
+      await http.delete(`/kb/collections/final_chunk_knowledge_v1.1/points/${id}`);
       ElMessage.success('删除成功');
       await fetchChunks(cursorStack.value[cursorStack.value.length - 1]);
     } catch (error) {
@@ -751,7 +751,7 @@ const uploadImage = async (options) => {
   try {
     const formData = new FormData();
     formData.append('file', options.file);
-    const response = await http.post('/upload/image', formData, {
+    const response = await http.post('/kb/upload/image', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     
@@ -777,7 +777,7 @@ const importData = async (options) => {
   try {
     const formData = new FormData();
     formData.append('file', options.file);
-    const response = await http.post(`/collections/final_chunk_knowledge_v1.1/import`, formData, {
+    const response = await http.post(`/kb/collections/final_chunk_knowledge_v1.1/import`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     ElMessage.success(`导入成功，导入 ${response.data.imported_count} 条数据`);
@@ -796,7 +796,7 @@ const importData = async (options) => {
 const exportData = async () => {
   loading.value = true;
   try {
-    const response = await http.get(`/collections/final_chunk_knowledge_v1.1/export`);
+    const response = await http.get(`/kb/collections/final_chunk_knowledge_v1.1/export`);
     const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' });
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');

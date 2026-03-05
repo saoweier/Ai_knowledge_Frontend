@@ -610,12 +610,11 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue';
-import neo4j from 'neo4j-driver';
 import { Network } from 'vis-network';
 import { DataSet } from 'vis-data';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import http from '@/api/http';
 
-// --- 响应式数据
 const activeTab = ref('connect');
 const isConnecting = ref(false);
 const isConnected = ref(false);
@@ -624,82 +623,168 @@ const isAdding = ref(false);
 const selectedNode = ref(null);
 const allNodeLabels = ref([]);
 
-// 在现有的响应式数据后添加
-const expandedNodes = ref(new Set()); // 跟踪已展开的节点
-const isEditingNode = ref(false); // 是否正在编辑节点
-const editingNode = reactive({ // 编辑中的节点数据
+const expandedNodes = ref(new Set());
+const isEditingNode = ref(false);
+const editingNode = reactive({
   id: '',
   labels: [],
   properties: []
 });
 
 const dbConfig = reactive({
-  serverUrl: 'bolt://localhost:7687',
-  username: 'neo4j',
-  password: 'password'
+  serverUrl: 'http://localhost:8093/api/kg',
+  username: '',
+  password: ''
 });
 
 const searchType = ref('all');
 const searchKeyword = ref('');
 
-const newNode = reactive({ 
-  label: '', 
-  properties: [{ key: 'name', value: '', type: 'string' }] // 改为键值对数组
+const newNode = reactive({
+  label: '',
+  properties: [{ key: 'name', value: '', type: 'string' }]
 });
 const newRelationship = reactive({ fromId: '', toId: '', type: '', properties: [] });
 
-// --- Neo4j 和 Vis-network 实例
-let driver = null;
 let network = null;
 let visNodes = new DataSet();
 let visEdges = new DataSet();
 
-// --- 核心方法
-const connectToDatabase = async () => {
-  isConnecting.value = true;
-  try {
-    if (driver) await driver.close();
-    driver = neo4j.driver(dbConfig.serverUrl, neo4j.auth.basic(dbConfig.username, dbConfig.password));
-    await driver.verifyConnectivity();
-    isConnected.value = true;
-    ElMessage.success('数据库连接成功！');
-    if (!network) initializeNetwork();
-    await getAllNodeLabels(); 
-  } catch (error) {
-    console.error('连接失败:', error);
-    isConnected.value = false;
-    ElMessage.error(`连接失败: ${error.message}`);
-  } finally {
-    isConnecting.value = false;
+const labelColorMap = new Map();
+const getNodeColor = (label) => {
+  if (!labelColorMap.has(label)) {
+    const hash = Array.from(label).reduce((acc, char) => {
+      return char.charCodeAt(0) + ((acc << 5) - acc);
+    }, 0);
+    const hue = Math.abs(hash) % 360;
+    const saturation = 65 + (Math.abs(hash) % 20);
+    const lightness = 45 + (Math.abs(hash) % 15);
+    const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+    labelColorMap.set(label, color);
+  }
+  return labelColorMap.get(label);
+};
+
+const getPlaceholderByType = (type) => {
+  switch (type) {
+    case 'number':
+      return '输入数字，如：123';
+    case 'boolean':
+      return '输入 true 或 false';
+    case 'string':
+    default:
+      return '输入属性值';
   }
 };
 
-const getAllNodeLabels = async () => {
-  if (!driver) return;
-  const session = driver.session();
-  try {
-    const result = await session.run('CALL db.labels()');
-    allNodeLabels.value = result.records.map(record => record.get('label'));
-  } catch (error) {
-    console.error("获取节点标签失败:", error);
-  } finally {
-    await session.close();
+const propertiesToObject = (properties) => {
+  const obj = {};
+  properties.forEach((prop) => {
+    if (prop.key && prop.value !== '') {
+      try {
+        switch (prop.type) {
+          case 'array':
+            obj[prop.key] = JSON.parse(prop.value);
+            break;
+          case 'number':
+            obj[prop.key] = Number(prop.value);
+            break;
+          case 'boolean':
+            obj[prop.key] = String(prop.value).toLowerCase() === 'true';
+            break;
+          case 'string':
+          default:
+            obj[prop.key] = prop.value;
+            break;
+        }
+      } catch (error) {
+        obj[prop.key] = prop.value;
+      }
+    }
+  });
+  return obj;
+};
+
+const normalizeNode = (node) => {
+  const nodeId = String(node.id);
+  const labels = Array.isArray(node.labels)
+    ? node.labels
+    : [node.label || 'Node'];
+  const properties = node.properties || {};
+  const displayLabel =
+    properties.name ||
+    properties.title ||
+    properties.id ||
+    labels[0] ||
+    'Node';
+
+  return {
+    id: nodeId,
+    label: `${nodeId}:${displayLabel}`,
+    labels,
+    properties,
+    title: `ID: ${nodeId}\n类型: ${labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(properties, null, 2)}`,
+    color: getNodeColor(labels[0] || 'Unknown')
+  };
+};
+
+const normalizeEdge = (edge) => {
+  const type = edge.type || edge.label || 'REL';
+  const properties = edge.properties || {};
+  const edgeId = String(edge.id);
+  const from = String(edge.from);
+  const to = String(edge.to);
+
+  return {
+    id: edgeId,
+    from,
+    to,
+    label: type,
+    arrows: 'to',
+    title: `ID: ${edgeId}\n类型: ${type}\n从: ${from}\n到: ${to}\n属性: ${JSON.stringify(properties, null, 2)}`,
+    color: { color: '#888' }
+  };
+};
+
+const applyGraphData = (nodes, edges, append = false) => {
+  if (!append) {
+    visNodes.clear();
+    visEdges.clear();
+    expandedNodes.value.clear();
+    selectedNode.value = null;
   }
+
+  if (append) {
+    const existingNodeIds = new Set(visNodes.getIds().map(String));
+    const existingEdgeIds = new Set(visEdges.getIds().map(String));
+
+    const nodesToAdd = nodes
+      .map(normalizeNode)
+      .filter((n) => !existingNodeIds.has(n.id));
+    const edgesToAdd = edges
+      .map(normalizeEdge)
+      .filter((e) => !existingEdgeIds.has(e.id));
+
+    if (nodesToAdd.length > 0) visNodes.add(nodesToAdd);
+    if (edgesToAdd.length > 0) visEdges.add(edgesToAdd);
+    return;
+  }
+
+  visNodes.add(nodes.map(normalizeNode));
+  visEdges.add(edges.map(normalizeEdge));
 };
 
 const initializeNetwork = () => {
   const container = document.getElementById('graph-container');
   if (!container) {
-    console.warn('Graph container not found, retrying...');
     setTimeout(initializeNetwork, 100);
     return;
   }
-  
+
   const data = { nodes: visNodes, edges: visEdges };
   const options = {
     layout: { hierarchical: false },
-    // 修正1: 正确配置tooltip
-    interaction: { 
+    interaction: {
       hover: true,
       tooltipDelay: 300,
       hideEdgesOnDrag: false,
@@ -710,19 +795,19 @@ const initializeNetwork = () => {
       barnesHut: {
         gravitationalConstant: -2000,
         springConstant: 0.002,
-        springLength: 200,
-      },
+        springLength: 200
+      }
     },
     edges: {
       smooth: true,
       arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-      font: { align: 'top', size: 12 },
+      font: { align: 'top', size: 12 }
     },
     nodes: {
       shape: 'dot',
       size: 30,
-      font: { 
-        size: 12, 
+      font: {
+        size: 12,
         color: '#000',
         strokeWidth: 2,
         strokeColor: '#ffffff'
@@ -737,19 +822,14 @@ const initializeNetwork = () => {
         }
       }
     },
-    // 添加配置以减少 ResizeObserver 问题
-    configure: {
-      enabled: false
-    },
-    // 禁用自动调整以避免 resize 循环
+    configure: { enabled: false },
     autoResize: false
   };
-  
+
   try {
     network = new Network(container, data, options);
 
-    // 监听节点点击事件
-    network.on("click", (params) => {
+    network.on('click', (params) => {
       if (params.nodes.length > 0) {
         const nodeId = params.nodes[0];
         selectedNode.value = visNodes.get(nodeId);
@@ -758,40 +838,64 @@ const initializeNetwork = () => {
         selectedNode.value = null;
       }
     });
-    
-    network.on("doubleClick", (params) => {
-        if (params.nodes.length > 0) {
-            const nodeId = params.nodes[0];
-            if (expandedNodes.value.has(nodeId)) {
-            // 如果已展开，则收拢
-            collapseNode(nodeId);
-            } else {
-            // 如果未展开，则展开
-            loadConnectedNodes(nodeId);
-            }
+
+    network.on('doubleClick', (params) => {
+      if (params.nodes.length > 0) {
+        const nodeId = String(params.nodes[0]);
+        if (expandedNodes.value.has(nodeId)) {
+          collapseNode(nodeId);
+        } else {
+          loadConnectedNodes(nodeId);
         }
+      }
     });
-    
-    // 手动处理窗口大小变化
+
     const handleResize = () => {
       if (network) {
         try {
           network.fit();
         } catch (e) {
-          // 忽略 resize 过程中的错误
+          // Ignore fit errors during resize/teardown
         }
       }
     };
-    
+
     window.addEventListener('resize', handleResize);
-    
-    // 在组件卸载时清理事件监听
     onUnmounted(() => {
       window.removeEventListener('resize', handleResize);
     });
-    
   } catch (error) {
     console.error('Network initialization failed:', error);
+  }
+};
+
+const connectToDatabase = async () => {
+  isConnecting.value = true;
+  try {
+    const healthResp = await http.get('/kg/health');
+    if (healthResp?.data?.status !== 'healthy') {
+      throw new Error(healthResp?.data?.error || '图谱服务不可用');
+    }
+
+    isConnected.value = true;
+    ElMessage.success('图谱服务连接成功！');
+    if (!network) initializeNetwork();
+    await getAllNodeLabels();
+  } catch (error) {
+    isConnected.value = false;
+    ElMessage.error(`连接失败: ${error?.message || '未知错误'}`);
+  } finally {
+    isConnecting.value = false;
+  }
+};
+
+const getAllNodeLabels = async () => {
+  if (!isConnected.value) return;
+  try {
+    const resp = await http.get('/kg/meta');
+    allNodeLabels.value = Array.isArray(resp?.data?.labels) ? resp.data.labels : [];
+  } catch (error) {
+    console.error('获取节点标签失败:', error);
   }
 };
 
@@ -803,109 +907,74 @@ const noCodeQuery = async () => {
     network.destroy();
     network = null;
   }
-  visNodes.clear();
-  visEdges.clear();
-  expandedNodes.value.clear();
-  selectedNode.value = null;
 
   try {
-    const session = driver.session();
-    let query = 'MATCH (n';
-    if (searchType.value !== 'all') {
-      query += `:${searchType.value}`;
-    }
-    query += ') ';
+    const payload = {
+      labels: searchType.value !== 'all' ? [searchType.value] : [],
+      rels: []
+    };
+    const resp = await http.post('/kg/graph/query?limit=200', payload);
 
-    if (searchKeyword.value) {
-      query += `WHERE n.name CONTAINS $keyword OR n.title CONTAINS $keyword OR n.description CONTAINS $keyword `;
-    }
+    let nodes = Array.isArray(resp?.data?.nodes) ? resp.data.nodes : [];
+    let edges = Array.isArray(resp?.data?.edges) ? resp.data.edges : [];
 
-    query += `OPTIONAL MATCH (n)-[r]-(m) RETURN n,m,r LIMIT 100`; // 增加 LIMIT
+    const keyword = searchKeyword.value.trim().toLowerCase();
+    if (keyword) {
+      const matchedNodeIds = new Set(
+        nodes
+          .filter((n) => {
+            const props = n.properties || {};
+            return Object.values(props).some((v) => String(v).toLowerCase().includes(keyword));
+          })
+          .map((n) => String(n.id))
+      );
 
-    const result = await session.run(query, { keyword: searchKeyword.value });
-    console.log('Records returned:', result.records.length); // 调试记录数
-
-    const nodes = new Map();
-    const edges = new Map();
-
-    result.records.forEach(record => {
-      record.forEach(value => {
-        if (neo4j.isNode(value)) {
-          const nodeId = value.identity.toString();
-          const displayLabel = value.properties.name || value.properties.title || value.properties.id || value.labels[0] || 'Node';
-          const node = {
-            id: nodeId,
-            label: `${value.identity.low}:${displayLabel}`,
-            labels: value.labels,
-            properties: value.properties,
-            title: `ID: ${value.identity.low}\n类型: ${value.labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(value.properties, null, 2)}`,
-            color: getNodeColor(value.labels[0] || 'Unknown')
-          };
-          nodes.set(node.id, node);
-        } else if (neo4j.isRelationship(value)) {
-          const edge = {
-            id: value.identity.toString(),
-            from: value.start.toString(),
-            to: value.end.toString(),
-            label: value.type,
-            arrows: 'to',
-            title: `ID: ${value.identity.low}\n类型: ${value.type}\n从: ${value.start.low}\n到: ${value.end.low}\n属性: ${JSON.stringify(value.properties, null, 2)}`,
-            color: { color: '#888' }
-          };
-          edges.set(edge.id, edge);
-        }
+      edges = edges.filter((e) => matchedNodeIds.has(String(e.from)) || matchedNodeIds.has(String(e.to)));
+      const edgeNodeIds = new Set();
+      edges.forEach((e) => {
+        edgeNodeIds.add(String(e.from));
+        edgeNodeIds.add(String(e.to));
       });
-    });
+      nodes = nodes.filter((n) => matchedNodeIds.has(String(n.id)) || edgeNodeIds.has(String(n.id)));
+    }
 
-    await session.close();
-    visNodes.add(Array.from(nodes.values()));
-    visEdges.add(Array.from(edges.values()));
-    console.log('visNodes:', visNodes.length, 'visEdges:', visEdges.length); // 调试渲染数据
-
+    applyGraphData(nodes, edges, false);
     initializeNetwork();
 
     ElMessage.success(`查询成功，共找到 ${visNodes.length} 个节点和 ${visEdges.length} 个关系`);
-
   } catch (error) {
     console.error('查询执行失败:', error);
-    ElMessage.error(`查询失败: ${error.message}`);
+    ElMessage.error(`查询失败: ${error?.message || '未知错误'}`);
   } finally {
     isQuerying.value = false;
   }
 };
 
-// 编辑节点相关函数
 const startEditNode = () => {
   if (!selectedNode.value) return;
-  
+
   isEditingNode.value = true;
   editingNode.id = selectedNode.value.id;
   editingNode.labels = [...selectedNode.value.labels];
-  
-  // 将属性对象转换为键值对数组，并检测类型
-    editingNode.properties = Object.entries(selectedNode.value.properties).map(([key, value]) => {
+
+  editingNode.properties = Object.entries(selectedNode.value.properties || {}).map(([key, value]) => {
     let type = 'string';
     let displayValue = String(value);
-    
+
     if (Array.isArray(value)) {
-        type = 'array';
-        displayValue = JSON.stringify(value);
+      type = 'array';
+      displayValue = JSON.stringify(value);
     } else if (typeof value === 'number') {
-        type = 'number';
+      type = 'number';
     } else if (typeof value === 'boolean') {
-        type = 'boolean';
+      type = 'boolean';
     }
-    
-    return {
-        key,
-        value: displayValue,
-        type
-    };
-    });
-    
-  // 确保至少有一个属性行
+
+    return { key, value: displayValue, type };
+  });
+
   if (editingNode.properties.length === 0) {
-    editingNode.properties.push({ key: '', value: '' });
+    editingNode.properties.push({ key: '', value: '', type: 'string' });
   }
 };
 
@@ -928,92 +997,63 @@ const removeEditingProperty = (index) => {
 
 const saveNodeChanges = async () => {
   if (!isConnected.value || !selectedNode.value) return;
-  
-  // 验证数据
+
   if (!editingNode.labels[0]) {
     ElMessage.warning('请输入节点类型');
     return;
   }
-  
-  const validProps = editingNode.properties.filter(prop => prop.key && prop.value);
+
+  const validProps = editingNode.properties.filter((prop) => prop.key && prop.value !== '');
   if (validProps.length === 0) {
     ElMessage.warning('请至少添加一个有效属性');
     return;
   }
-  
+
   isAdding.value = true;
-  
+
   try {
-    const session = driver.session();
-    const nodeId = selectedNode.value.id;
+    const nodeId = Number(selectedNode.value.id);
     const newLabel = editingNode.labels[0];
-    const oldLabels = selectedNode.value.labels;
     const newProperties = propertiesToObject(editingNode.properties);
-    
-    // 构建更新查询
-    let query = `MATCH (n) WHERE id(n) = toInteger($nodeId) `;
-    
-    // 如果标签改变了，先移除旧标签，再添加新标签
-    if (!oldLabels.includes(newLabel)) {
-      // 移除所有旧标签
-      for (const oldLabel of oldLabels) {
-        query += `REMOVE n:${oldLabel} `;
-      }
-      // 添加新标签
-      query += `SET n:${newLabel} `;
-    }
-    
-    // 清除所有现有属性，然后设置新属性
-    query += `SET n = $properties RETURN n`;
-    
-    const result = await session.run(query, { 
-      nodeId: nodeId, 
-      properties: newProperties 
+
+    const resp = await http.post('/kg/nodes/update', {
+      id: nodeId,
+      label: newLabel,
+      properties: newProperties,
     });
-    
-    if (result.records.length === 0) {
-      throw new Error('节点不存在或更新失败');
-    }
-    
-    await session.close();
-    
-    // 更新本地数据
-    const updatedNode = result.records[0].get('n');
-    const displayLabel = updatedNode.properties.name || updatedNode.properties.title || updatedNode.labels[0] || 'Node';
-    
+
+    const updated = {
+      id: String(resp?.data?.id ?? nodeId),
+      labels: Array.isArray(resp?.data?.labels)
+        ? resp.data.labels
+        : selectedNode.value.labels,
+      properties: resp?.data?.properties || newProperties
+    };
+
+    const displayLabel =
+      updated.properties.name || updated.properties.title || updated.labels[0] || 'Node';
+
     const nodeUpdate = {
-      id: nodeId,
-      label: `${updatedNode.identity.low}:${displayLabel}`,
-      labels: updatedNode.labels,
-      properties: updatedNode.properties,
-      title: `ID: ${updatedNode.identity.low}\n类型: ${updatedNode.labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(updatedNode.properties, null, 2)}`,
-      color: getNodeColor(updatedNode.labels[0] || 'Unknown')
+      id: updated.id,
+      label: `${updated.id}:${displayLabel}`,
+      labels: updated.labels,
+      properties: updated.properties,
+      title: `ID: ${updated.id}\n类型: ${updated.labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(updated.properties, null, 2)}`,
+      color: getNodeColor(updated.labels[0] || 'Unknown')
     };
-    
-    // 更新 visNodes
+
     visNodes.update(nodeUpdate);
-    
-    // 更新 selectedNode
-    selectedNode.value = {
-      id: nodeId,
-      labels: updatedNode.labels,
-      properties: updatedNode.properties
-    };
-    
-    // 退出编辑模式
+    selectedNode.value = nodeUpdate;
     isEditingNode.value = false;
-    
     ElMessage.success('节点更新成功！');
-    
   } catch (error) {
     console.error('更新节点失败:', error);
-    ElMessage.error(`更新失败: ${error.message}`);
+    ElMessage.error(`更新失败: ${error?.message || '未知错误'}`);
   } finally {
     isAdding.value = false;
   }
 };
 
-// 节点属性管理函数
 const addNodeProperty = () => {
   newNode.properties.push({ key: '', value: '', type: 'string' });
 };
@@ -1024,58 +1064,12 @@ const removeNodeProperty = (index) => {
   }
 };
 
-// 关系属性管理函数
 const addRelationshipProperty = () => {
-  newRelationship.properties.push({ key: '', value: '' });
+  newRelationship.properties.push({ key: '', value: '', type: 'string' });
 };
 
 const removeRelationshipProperty = (index) => {
   newRelationship.properties.splice(index, 1);
-};
-
-// 将属性数组转换为对象
-const propertiesToObject = (properties) => {
-  const obj = {};
-  properties.forEach(prop => {
-    if (prop.key && prop.value !== '') {
-      try {
-        switch (prop.type) {
-          case 'array':
-            // 解析JSON数组
-            obj[prop.key] = JSON.parse(prop.value);
-            break;
-          case 'number':
-            obj[prop.key] = Number(prop.value);
-            break;
-          case 'boolean':
-            obj[prop.key] = prop.value.toLowerCase() === 'true';
-            break;
-          case 'string':
-          default:
-            obj[prop.key] = prop.value;
-            break;
-        }
-      } catch (error) {
-        // 如果JSON解析失败，当作字符串处理
-        console.warn(`属性 ${prop.key} 解析失败，当作字符串处理:`, error);
-        obj[prop.key] = prop.value;
-      }
-    }
-  });
-  return obj;
-};
-
-// 添加辅助函数
-const getPlaceholderByType = (type) => {
-  switch (type) {
-    case 'number':
-      return '输入数字，如：123';
-    case 'boolean':
-      return '输入 true 或 false';
-    case 'string':
-    default:
-      return '输入属性值';
-  }
 };
 
 const addNode = async () => {
@@ -1084,41 +1078,36 @@ const addNode = async () => {
     ElMessage.warning('请输入节点类型');
     return;
   }
-  
-  // 检查是否至少有一个有效属性
-  const validProps = newNode.properties.filter(prop => prop.key && prop.value);
+
+  const validProps = newNode.properties.filter((prop) => prop.key && prop.value !== '');
   if (validProps.length === 0) {
     ElMessage.warning('请至少添加一个有效属性');
     return;
   }
-  
+
   isAdding.value = true;
   try {
-    const session = driver.session();
     const props = propertiesToObject(newNode.properties);
-    const query = `CREATE (n:${newNode.label} $props) RETURN n`;
-    const result = await session.run(query, { props });
-    await session.close();
+    const resp = await http.post('/kg/nodes', {
+      label: newNode.label.trim(),
+      properties: props
+    });
 
-    const createdNode = result.records[0].get('n');
-    const displayLabel = createdNode.properties.name || createdNode.properties.title || createdNode.labels[0] || 'Node';
-    const nodeToAdd = {
-      id: createdNode.identity.toString(),
-      label: `${createdNode.identity.low}:${displayLabel}`,
-      labels: createdNode.labels,
-      properties: createdNode.properties,
-      title: `ID: ${createdNode.identity.low}\n类型: ${createdNode.labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(createdNode.properties, null, 2)}`,
-      color: getNodeColor(createdNode.labels[0] || 'Unknown')
+    const nodeRaw = {
+      id: resp?.data?.id,
+      labels: Array.isArray(resp?.data?.labels) ? resp.data.labels : [newNode.label.trim()],
+      properties: resp?.data?.properties || props
     };
+
+    const nodeToAdd = normalizeNode(nodeRaw);
     visNodes.add(nodeToAdd);
-    ElMessage.success(`节点 "${displayLabel}" 添加成功！`);
-    
-    // 重置表单
+    ElMessage.success(`节点 "${nodeToAdd.label}" 添加成功！`);
+
     newNode.label = '';
-    newNode.properties = [{ key: 'name', value: '' }];
+    newNode.properties = [{ key: 'name', value: '', type: 'string' }];
   } catch (error) {
     console.error('添加节点失败:', error);
-    ElMessage.error(`添加失败: ${error.message}`);
+    ElMessage.error(`添加失败: ${error?.message || '未知错误'}`);
   } finally {
     isAdding.value = false;
   }
@@ -1130,55 +1119,38 @@ const addRelationship = async () => {
     ElMessage.warning('请填写所有必填字段');
     return;
   }
-  
+
   isAdding.value = true;
   try {
-    const session = driver.session();
     const props = propertiesToObject(newRelationship.properties);
-    
-    let query = `
-      MATCH (a), (b)
-      WHERE id(a) = toInteger($fromId) AND id(b) = toInteger($toId)
-      CREATE (a)-[r:${newRelationship.type}`;
-    
-    if (Object.keys(props).length > 0) {
-      query += ` $props`;
-    }
-    
-    query += `]->(b) RETURN r, a, b`;
-    
-    const result = await session.run(query, {
-      fromId: newRelationship.fromId,
-      toId: newRelationship.toId,
-      props: props
-    });
-    
-    if (result.records.length === 0) {
-      throw new Error('找不到指定ID的节点');
-    }
-    
-    await session.close();
+    const startId = Number(newRelationship.fromId);
+    const endId = Number(newRelationship.toId);
 
-    const relationshipRecord = result.records[0].get('r');
-    const edgeToAdd = {
-      id: relationshipRecord.identity.toString(),
-      from: newRelationship.fromId,
-      to: newRelationship.toId,
-      label: newRelationship.type,
-      arrows: 'to',
-      title: `类型: ${newRelationship.type}\n属性: ${JSON.stringify(props, null, 2)}`
-    };
+    const resp = await http.post('/kg/relationships', {
+      start_id: startId,
+      end_id: endId,
+      rel_type: newRelationship.type,
+      properties: props
+    });
+
+    const edgeToAdd = normalizeEdge({
+      id: resp?.data?.id,
+      from: startId,
+      to: endId,
+      type: resp?.data?.type || newRelationship.type,
+      properties: resp?.data?.properties || props
+    });
+
     visEdges.add(edgeToAdd);
     ElMessage.success('关系添加成功！');
-    
-    // 重置表单
+
     newRelationship.fromId = '';
     newRelationship.toId = '';
     newRelationship.type = '';
     newRelationship.properties = [];
   } catch (error) {
     console.error('添加关系失败:', error);
-    ElMessage.error(`添加失败: ${error.message}`);
+    ElMessage.error(`添加失败: ${error?.message || '未知错误'}`);
   } finally {
     isAdding.value = false;
   }
@@ -1186,7 +1158,7 @@ const addRelationship = async () => {
 
 const deleteSelectedNode = async () => {
   if (!selectedNode.value || !isConnected.value) return;
-  
+
   try {
     await ElMessageBox.confirm(
       `确定要删除节点 "${selectedNode.value.label}" 及其所有关系吗？`,
@@ -1194,199 +1166,97 @@ const deleteSelectedNode = async () => {
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning',
+        type: 'warning'
       }
     );
-    
-    // 用户确认删除
+
     isAdding.value = true;
     try {
-      const session = driver.session();
-      const query = `MATCH (n) WHERE id(n) = toInteger($nodeId) DETACH DELETE n`;
-      await session.run(query, { nodeId: selectedNode.value.id });
-      await session.close();
+      await http.post('/kg/nodes/delete', { id: Number(selectedNode.value.id) });
       visNodes.remove({ id: selectedNode.value.id });
       selectedNode.value = null;
       ElMessage.success('节点删除成功！');
     } catch (error) {
       console.error('删除节点失败:', error);
-      ElMessage.error(`删除失败: ${error.message}`);
+      ElMessage.error(`删除失败: ${error?.message || '未知错误'}`);
     } finally {
       isAdding.value = false;
     }
   } catch (error) {
-    // 用户取消删除或点击弹窗外部，这是正常行为，不需要处理
-    // console.log('用户取消删除操作');
+    // User cancelled delete confirmation
   }
 };
 
-// 智能颜色分配 - 为每个节点类型生成一致的随机颜色
-const labelColorMap = new Map();
-const getNodeColor = (label) => {
-  if (!labelColorMap.has(label)) {
-    // 使用标签名称作为种子生成一致的颜色
-    const hash = Array.from(label).reduce((acc, char) => {
-      return char.charCodeAt(0) + ((acc << 5) - acc);
-    }, 0);
-    
-    // 生成HSL颜色，确保饱和度和亮度适中，便于阅读
-    const hue = Math.abs(hash) % 360;
-    const saturation = 65 + (Math.abs(hash) % 20); // 65-85%
-    const lightness = 45 + (Math.abs(hash) % 15);  // 45-60%
-    
-    const color = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    labelColorMap.set(label, color);
-  }
-  return labelColorMap.get(label);
-};
-
-// 修正3: 重写loadConnectedNodes函数以避免重复ID错误
 const loadConnectedNodes = async (startNodeId) => {
   if (!isConnected.value) return;
   isQuerying.value = true;
 
   try {
-    const session = driver.session();
-    const query = `
-      MATCH (start) WHERE id(start) = toInteger($nodeId)
-      OPTIONAL MATCH (start)-[r]-(connected) 
-      RETURN start, r, connected
-      LIMIT 100
-    `;
-    const result = await session.run(query, { nodeId: startNodeId });
+    const resp = await http.post('/kg/graph/expand', { nodeId: Number(startNodeId) });
+    const nodes = Array.isArray(resp?.data?.nodes) ? resp.data.nodes : [];
+    const edges = Array.isArray(resp?.data?.edges) ? resp.data.edges : [];
 
-    const newNodes = [];
-    const newEdges = [];
-    const existingNodeIds = new Set(visNodes.getIds());
-    const existingEdgeIds = new Set(visEdges.getIds());
-
-    result.records.forEach(record => {
-      record.forEach(value => {
-        if (neo4j.isNode(value)) {
-          const nodeId = value.identity.toString();
-          // 只添加不存在的节点
-          if (!existingNodeIds.has(nodeId)) {
-            const displayLabel = value.properties.name || value.properties.title || value.labels[0] || 'Node';
-            const node = {
-              id: nodeId,
-              label: `${value.identity.low}:${displayLabel}`,
-              labels: value.labels,
-              properties: value.properties,
-              title: `ID: ${value.identity.low}\n类型: ${value.labels.join(', ')}\n名称: ${displayLabel}\n属性:\n${JSON.stringify(value.properties, null, 2)}`,
-              color: getNodeColor(value.labels[0] || 'Unknown')
-            };
-            newNodes.push(node);
-            existingNodeIds.add(nodeId);
-          }
-        } else if (neo4j.isRelationship(value)) {
-          const edgeId = value.identity.toString();
-          // 只添加不存在的边
-          if (!existingEdgeIds.has(edgeId)) {
-            const edge = {
-              id: edgeId,
-              from: value.start.toString(),
-              to: value.end.toString(),
-              label: value.type,
-              arrows: 'to',
-              title: `ID: ${value.identity.low}\n类型: ${value.type}\n从: ${value.start.low}\n到: ${value.end.low}\n属性: ${JSON.stringify(value.properties, null, 2)}`,
-              color: { color: '#888' }
-            };
-            newEdges.push(edge);
-            existingEdgeIds.add(edgeId);
-          }
-        }
-      });
-    });
-
-    await session.close();
-    
-    // 批量添加新节点和边
-    if (newNodes.length > 0) {
-      visNodes.add(newNodes);
-    }
-    if (newEdges.length > 0) {
-      visEdges.add(newEdges);
-    }
-    expandedNodes.value.add(startNodeId);
-    ElMessage.success(`已加载 ${newNodes.length} 个新节点和 ${newEdges.length} 个新关系`);
-
+    applyGraphData(nodes, edges, true);
+    expandedNodes.value.add(String(startNodeId));
+    ElMessage.success(`已加载 ${nodes.length} 个节点和 ${edges.length} 个关系`);
   } catch (error) {
-    console.error("加载关联节点失败:", error);
-    ElMessage.error(`加载关联节点失败: ${error.message}`);
+    console.error('加载关联节点失败:', error);
+    ElMessage.error(`加载关联节点失败: ${error?.message || '未知错误'}`);
   } finally {
     isQuerying.value = false;
   }
 };
 
-// 新增函数：收拢节点
 const collapseNode = (nodeId) => {
   try {
-    // 找到该节点的所有直接连接的边
-    const connectedEdges = visEdges.get().filter(edge => 
-      edge.from === nodeId || edge.to === nodeId
-    );
-    
-    // 找到通过这些边连接的所有节点
+    const connectedEdges = visEdges.get().filter((edge) => edge.from === nodeId || edge.to === nodeId);
+
     const connectedNodeIds = new Set();
-    connectedEdges.forEach(edge => {
+    connectedEdges.forEach((edge) => {
       if (edge.from === nodeId) {
         connectedNodeIds.add(edge.to);
       } else if (edge.to === nodeId) {
         connectedNodeIds.add(edge.from);
       }
     });
-    
-    // 检查哪些连接的节点只与当前节点相连（即移除后会孤立的节点）
+
     const nodesToRemove = [];
     const edgesToRemove = [];
-    
-    connectedNodeIds.forEach(connectedNodeId => {
-      const nodeEdges = visEdges.get().filter(edge => 
-        edge.from === connectedNodeId || edge.to === connectedNodeId
-      );
-      
-      // 如果这个节点只与当前节点有连接，则可以移除
-      const otherConnections = nodeEdges.filter(edge => 
-        !(edge.from === nodeId || edge.to === nodeId)
-      );
-      
+
+    connectedNodeIds.forEach((connectedNodeId) => {
+      const nodeEdges = visEdges.get().filter((edge) => edge.from === connectedNodeId || edge.to === connectedNodeId);
+      const otherConnections = nodeEdges.filter((edge) => !(edge.from === nodeId || edge.to === nodeId));
+
       if (otherConnections.length === 0) {
         nodesToRemove.push(connectedNodeId);
-        // 添加相关的边到移除列表
-        nodeEdges.forEach(edge => {
+        nodeEdges.forEach((edge) => {
           if (!edgesToRemove.includes(edge.id)) {
             edgesToRemove.push(edge.id);
           }
         });
       }
     });
-    
-    // 移除节点和边
+
     if (nodesToRemove.length > 0) {
       visNodes.remove(nodesToRemove);
     }
     if (edgesToRemove.length > 0) {
       visEdges.remove(edgesToRemove);
     }
-    
-    // 标记节点为未展开
-    expandedNodes.value.delete(nodeId);
-    
+
+    expandedNodes.value.delete(String(nodeId));
     ElMessage.success(`已收拢节点，移除了 ${nodesToRemove.length} 个相关节点`);
-    
   } catch (error) {
-    console.error("收拢节点失败:", error);
-    ElMessage.error(`收拢失败: ${error.message}`);
+    console.error('收拢节点失败:', error);
+    ElMessage.error(`收拢失败: ${error?.message || '未知错误'}`);
   }
 };
 
-// 全局错误处理 - 忽略 ResizeObserver 错误
-// 全局错误处理 - 忽略 ResizeObserver 错误
 const handleResizeObserverError = () => {
   const originalError = window.onerror;
   window.onerror = (message, source, lineno, colno, error) => {
     if (message && message.toString().includes('ResizeObserver loop')) {
-      return true; // 阻止错误显示
+      return true;
     }
     if (originalError) {
       return originalError(message, source, lineno, colno, error);
@@ -1394,11 +1264,9 @@ const handleResizeObserverError = () => {
     return false;
   };
 
-  // 处理未捕获的 Promise 错误
   const originalUnhandledRejection = window.onunhandledrejection;
   window.onunhandledrejection = (event) => {
-    if (event.reason && event.reason.message && 
-        event.reason.message.includes('ResizeObserver loop')) {
+    if (event.reason && event.reason.message && event.reason.message.includes('ResizeObserver loop')) {
       event.preventDefault();
       return;
     }
@@ -1408,21 +1276,15 @@ const handleResizeObserverError = () => {
   };
 };
 
-// --- 生命周期钩子
 onMounted(() => {
-  // 设置错误处理
   handleResizeObserverError();
-  
-  // 延迟初始化网络，避免容器大小计算问题
   setTimeout(() => {
     initializeNetwork();
   }, 100);
 });
 
 onUnmounted(() => {
-  if (driver) driver.close();
   if (network) network.destroy();
-  // 清理错误处理
   window.onerror = null;
   window.onunhandledrejection = null;
 });
