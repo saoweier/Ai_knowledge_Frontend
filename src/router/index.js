@@ -1,4 +1,4 @@
-// router/index.js - 集成会话管理的路由配置
+﻿// router/index.js - 集成会话管理的路由配置
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import ChatView from '@/views/ChatView.vue'
@@ -9,6 +9,7 @@ import knowlegdeView from '@/views/knowlegdeView.vue'
 import KgView from '@/views/KgView.vue'
 import ChatFlow from '@/views/ChatFlow.vue'
 import EquipmentMaintenanceView from '@/views/EquipmentMaintenanceView.vue'
+import KnowledgeExtractorView from '@/views/KnowledgeExtractorView.vue'
 
 const routes = [
   { path: '/login', name: 'Login', component: LoginView },
@@ -19,6 +20,7 @@ const routes = [
   { path: '/knowgraph', name: 'kgknowgraph', component: KgView, meta: { requiresAuth: true } },
   { path: '/chatFlow', name: 'ChatFlow', component: ChatFlow, meta: { requiresAuth: true } },
   { path: '/equipment-maintenance', name: 'EquipmentMaintenance', component: EquipmentMaintenanceView, meta: { requiresAuth: true } },
+  { path: '/knowledge-extractor', name: 'KnowledgeExtractor', component: KnowledgeExtractorView, meta: { requiresAuth: true } },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 

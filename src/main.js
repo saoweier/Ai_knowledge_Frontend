@@ -12,32 +12,21 @@ app.use(router)
 app.use(ElementPlus)
 app.mount('#app')
 
-const ignoreResizeObserverError = () => {
-  const resizeObserverErrMsg = 'ResizeObserver loop completed with undelivered notifications.';
-  window.addEventListener('error', (e) => {
-    if (e.message === resizeObserverErrMsg) {
-      e.stopImmediatePropagation();
-    }
-  });
+const RESIZE_OBSERVER_ERRORS = [
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded'
+]
 
-  window.addEventListener('unhandledrejection', (e) => {
-    if (String(e.reason) === resizeObserverErrMsg) {
-      e.stopImmediatePropagation();
-    }
-  });
-};
+const shouldIgnoreResizeObserver = (value) => {
+  const message = String(value?.message || value?.reason?.message || value?.reason || value || '')
+  return RESIZE_OBSERVER_ERRORS.some((item) => message.includes(item))
+}
 
-ignoreResizeObserverError();
+const ignoreResizeObserverError = (event) => {
+  if (!shouldIgnoreResizeObserver(event)) return
+  event.preventDefault?.()
+  event.stopImmediatePropagation?.()
+}
 
-
-// main.js
-const resizeObserverErr = (e) => {
-  if (
-    e.message ===
-    "ResizeObserver loop completed with undelivered notifications."
-  ) {
-    e.stopImmediatePropagation();
-  }
-};
-window.addEventListener("error", resizeObserverErr);
-window.addEventListener("unhandledrejection", resizeObserverErr);
+window.addEventListener('error', ignoreResizeObserverError)
+window.addEventListener('unhandledrejection', ignoreResizeObserverError)

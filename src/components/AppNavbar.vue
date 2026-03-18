@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <nav class="navbar">
     <div class="navbar-container">
       <!-- 左侧品牌区 -->
@@ -51,6 +51,14 @@
         >
           <span class="nav-icon">🕸️</span>
           <span>知识图谱</span>
+        </router-link>
+
+        <router-link
+          to="/knowledge-extractor"
+          class="nav-link"
+        >
+          <span class="nav-icon">🧪</span>
+          <span>知识提炼</span>
         </router-link>
 
         <router-link

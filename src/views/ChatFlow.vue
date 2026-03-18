@@ -1047,7 +1047,9 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
     query_text: queryText,
     enable_llm_integration: true,
     current_flow_id: flowId,
-    feedback_type: feedbackType
+    feedback_type: feedbackType,
+    graph_mode: true,
+    force_content_type: 'fault_diagnosis'
   }
 
   loading.value = true

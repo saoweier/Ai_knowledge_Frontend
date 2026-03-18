@@ -105,8 +105,15 @@ function logoutNow() {
 
 html, body {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #667eea #f1f5f9;
+}
+
+body {
+  background: #f8fafc;
 }
 
 #app {
@@ -114,7 +121,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
@@ -122,12 +129,22 @@ html, body {
 /* 主内容区 */
 .main-content {
   flex: 1;
-  overflow: auto;
+  display: flex;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
+  min-height: 0;
+  scrollbar-gutter: stable both-edges;
 }
 
 .main-content.with-navbar {
-  height: calc(100% - 640px);
+  min-height: 0;
+}
+
+.main-content > * {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* 会话警告弹窗样式 */
