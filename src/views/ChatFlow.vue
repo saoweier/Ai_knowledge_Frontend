@@ -120,6 +120,31 @@
 
 
       <main class="chat-layout">
+        <header
+          class="flow-shell-header"
+          :class="{ compact: messages.length > 0 }"
+        >
+          <div class="flow-shell-copy">
+            <p class="flow-eyebrow">Flow 工作台</p>
+            <h1>图谱诊断与分支推进</h1>
+            <p>保留流程推进和设备上下文，但把主要空间留给消息与步骤卡。</p>
+          </div>
+          <div class="flow-header-metrics">
+            <div class="flow-metric-card">
+              <span>当前接口</span>
+              <strong>{{ apiLabel }}</strong>
+            </div>
+            <div class="flow-metric-card">
+              <span>当前流程</span>
+              <strong>{{ currentFlowHeadline }}</strong>
+            </div>
+            <div class="flow-metric-card">
+              <span>步骤数</span>
+              <strong>{{ flowStepCount }}</strong>
+            </div>
+          </div>
+        </header>
+
         <!-- 设备状态区域 -->
         <div
           class="device-status-bar"
@@ -244,6 +269,27 @@
           class="chat-messages-container"
         >
           <div class="messages-wrapper">
+            <section
+              v-if="messages.length === 0"
+              class="flow-empty-state"
+            >
+              <div class="flow-empty-card">
+                <h2>先发起一个诊断问题，系统再给出下一步、成功/失败分支和终点提示。</h2>
+                <p>可以直接输入故障现象、报警码，也可以通过语音说“下一步”“是”“否”来推进已经生成的流程。</p>
+              </div>
+              <div class="flow-starter-grid">
+                <button
+                  v-for="prompt in starterPrompts"
+                  :key="prompt"
+                  type="button"
+                  class="flow-starter"
+                  @click="handleFaqClick(prompt)"
+                >
+                  {{ prompt }}
+                </button>
+              </div>
+            </section>
+
             <template
               v-for="(msg, idx) in messages"
               :key="idx"
@@ -278,18 +324,6 @@
                 
                 <div class="assistant-content-box">
                   <div class="assistant-head">
-                    <div
-                      v-if="msg.query_intent"
-                      class="mb-2"
-                    >
-                      <el-tag
-                        type="info"
-                        effect="plain"
-                        size="small"
-                      >
-                        意图：{{ msg.query_intent }}
-                      </el-tag>
-                    </div>
                     <div
                       v-if="msg.guidance"
                       class="guidance mb-2"
@@ -332,78 +366,74 @@
                           <strong class="ml-2">{{ step.title }}</strong>
                         </div>
                         <div class="step-body">
-                          <div class="instruction-card">
-                            <div class="instruction-icon">
-                              <el-icon><InfoFilled /></el-icon><span>操作指南</span>
-                            </div>
-                            <p class="desc main-instruction">
-                              {{ step.description }}
-                            </p>
-                          </div>
-                          <p class="expected">
-                            <strong>预期结果：</strong>{{ step.expected_result }}
-                          </p>
-                          <div
-                            v-if="step.images?.length"
-                            class="step-images"
-                          >
-                            <div 
-                              v-for="(url, iidx) in step.images" 
-                              :key="iidx" 
-                              class="image-wrapper"
-                            >
-                              <template v-if="isVideo(url)">
-                                <video 
-                                  :src="url" 
-                                  controls 
-                                  class="step-media-item step-video" 
-                                  preload="metadata"
-                                  @click.stop
+                          <div class="step-layout">
+                            <div class="step-text-panel">
+                              <div class="instruction-card">
+                                <div class="instruction-icon">
+                                  <el-icon><InfoFilled /></el-icon><span>操作指南</span>
+                                </div>
+                                <p class="desc main-instruction">
+                                  {{ step.description }}
+                                </p>
+                              </div>
+                              <p class="expected">
+                                <strong>预期结果：</strong>{{ step.expected_result }}
+                              </p>
+                              <div
+                                v-if="step.safety_notes?.length"
+                                class="safety-inline"
+                              >
+                                <span class="safety-inline-label">安全提示</span>
+                                <span
+                                  v-for="(note, nidx) in step.safety_notes"
+                                  :key="nidx"
+                                  class="safety-chip"
                                 >
-                                  您的浏览器不支持视频播放。
-                                </video>
-                              </template>
-                                
-                              <template v-else>
-                                <el-image
-                                  :src="url"
-                                  fit="cover"
-                                  class="step-media-item step-img-thumb"
-                                  :preview-src-list="step.images.filter(u => !isVideo(u))" 
-                                  :initial-index="getUiImageIndex(step.images, url)"
-                                  :preview-teleported="true"
-                                  loading="lazy"
-                                >
-                                  <template #placeholder>
-                                    <div class="image-slot">
-                                      加载中...
-                                    </div>
-                                  </template>
-                                </el-image>
-                              </template>
+                                  {{ note }}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div
-                            v-if="step.safety_notes?.length"
-                            class="safety-notes"
-                          >
-                            <el-alert
-                              type="warning"
-                              :closable="false"
+
+                            <div
+                              v-if="step.images?.length"
+                              class="step-media-panel"
                             >
-                              <template #title>
-                                <div>⚠️ 安全提示</div>
-                                <ul>
-                                  <li
-                                    v-for="(note, nidx) in step.safety_notes"
-                                    :key="nidx"
+                              <div
+                                v-for="(url, iidx) in step.images"
+                                :key="iidx"
+                                class="image-wrapper"
+                              >
+                                <template v-if="isVideo(url)">
+                                  <video
+                                    :src="url"
+                                    controls
+                                    class="step-media-item step-video"
+                                    preload="metadata"
+                                    @click.stop
                                   >
-                                    {{ note }}
-                                  </li>
-                                </ul>
-                              </template>
-                            </el-alert>
+                                    您的浏览器不支持视频播放。
+                                  </video>
+                                </template>
+
+                                <template v-else>
+                                  <el-image
+                                    :src="url"
+                                    fit="cover"
+                                    class="step-media-item step-img-thumb"
+                                    :preview-src-list="step.images.filter(u => !isVideo(u))"
+                                    :initial-index="getUiImageIndex(step.images, url)"
+                                    :preview-teleported="true"
+                                    loading="lazy"
+                                  >
+                                    <template #placeholder>
+                                      <div class="image-slot">
+                                        加载中...
+                                      </div>
+                                    </template>
+                                  </el-image>
+                                </template>
+                              </div>
+                            </div>
                           </div>
 
                           <div class="flow-actions">
@@ -619,13 +649,42 @@
 
         <!-- 输入区域 -->
         <div class="chat-input-area">
+          <div
+            v-if="voiceEnabled || recognizedText || lastError"
+            class="voice-briefing"
+          >
+            <div class="voice-briefing-main">
+              <span
+                class="voice-state-dot"
+                :class="[voiceStatusTone, { pulsing: isRecording || isSpeaking }]"
+              />
+              <strong>语音状态：{{ voiceStateLabel }}</strong>
+              <span v-if="voiceEnabled && recognizedText">已识别“{{ recognizedText }}”</span>
+              <span v-else-if="voiceEnabled && lastError">{{ lastError }}</span>
+              <span v-else-if="voiceEnabled && currentFlowGuidance">{{ currentFlowGuidance }}</span>
+            </div>
+            <div
+              v-if="voiceEnabled"
+              class="voice-briefing-side"
+            >
+              支持命令：下一步 / 是 / 否
+            </div>
+          </div>
           <MessageInput
             :loading="loading"
             :default-api="api"
             :default-options="options"
             :default-memory-limit="memoryLimit"
             :is-recording="isRecording"
+            :is-speaking="isSpeaking"
             :voice-enabled="voiceEnabled"
+            :placeholder="'输入故障描述或直接说出流程指令，例如：下一步、是、否'"
+            :context-hint="'支持：下一步 / 是 / 否'"
+            :mode-label="'ChatFlow 流程'"
+            :voice-state-label="voiceStateLabel"
+            :voice-tone="voiceStatusTone"
+            :recognized-text="recognizedText"
+            :voice-error="lastError"
             @send="onSend"
             @clear="clearAll"
             @update:api="(v)=> api = v"
@@ -634,11 +693,12 @@
             @update:voice-enabled="(v) => handleVoiceToggle(v)"
             @mic-click="handleMicClick"
             @voice-toggle="handleVoiceToggle"
+            @stop-speaking="stopSpeaking"
           />
           <div class="footer-note">
             内容由 AI 生成，请以现场实际情况为准。
             <span v-if="voiceEnabled" class="voice-status">
-              | 语音模式: {{ isListening ? '监听中' : (isSpeaking ? '播报中' : '就绪') }}
+              | {{ voiceStateLabel }}
             </span>
           </div>
         </div>
@@ -649,7 +709,7 @@
 
 
 <script setup>
-import { ref, computed, nextTick } from 'vue'
+import { ref, computed, nextTick, watch } from 'vue'
 import { ElMessage , ElMessageBox} from 'element-plus'
 import { ArrowRight, Odometer, Clock, CircleCheck, CircleClose, Right, QuestionFilled, Warning, Tools, Delete, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
 import http from '@/api/http'
@@ -665,9 +725,12 @@ const scrollContainer = ref(null)
 
 const {
   voiceEnabled,
-  isListening,
   isRecording,
   isSpeaking,
+  recognizedText,
+  lastError,
+  voiceStateLabel,
+  voiceStatusTone,
   setVoiceEnabled,
   startWakeWordDetection,
   stopWakeWordDetection,
@@ -679,6 +742,34 @@ const {
 } = useVoiceController()
 
 const lastFlowActionContext = ref(null)
+const starterPrompts = [
+  '拉丝机速度异常故障诊断流程',
+  '触摸屏报 PLC 异常后应该先检查什么？',
+  '故障代码 F7011 的排查流程',
+  '设备无法启动时的标准处理步骤'
+]
+
+const latestFlowMessage = computed(() => {
+  for (let i = messages.value.length - 1; i >= 0; i -= 1) {
+    const candidate = messages.value[i]
+    if (candidate?.solution) return candidate
+  }
+  return null
+})
+
+const currentFlowHeadline = computed(() => {
+  const firstStep = latestFlowMessage.value?.solution?.troubleshooting_steps?.[0]
+  return firstStep?.title || '未开始'
+})
+
+const currentFlowGuidance = computed(() => {
+  if (!voiceEnabled.value) return '语音关闭时仍可手动点击流程卡推进。'
+  if (latestFlowMessage.value?.guidance) return latestFlowMessage.value.guidance
+  return '可通过语音或按钮推进当前流程。'
+})
+
+const flowStepCount = computed(() => latestFlowMessage.value?.solution?.troubleshooting_steps?.length || 0)
+const apiLabel = computed(() => api.value === 'search_flow_solution' ? '流程搜索' : api.value)
 
 function handleVoiceToggle(enabled) {
   setVoiceEnabled(enabled)
@@ -686,11 +777,8 @@ function handleVoiceToggle(enabled) {
     startWakeWordDetection(() => {
       startRecording((text) => {
         const command = parseVoiceCommand(text)
-        if (command && lastFlowActionContext.value) {
-          const ctx = lastFlowActionContext.value
-          handleFlowAction(ctx.flowId, command, ctx.actionText)
-          lastFlowActionContext.value = null
-        } else if (text) {
+        if (command && handleRecognizedFlowCommand(command)) return
+        if (text) {
           onSend({ text, api: api.value, options: options.value })
         }
       })
@@ -709,16 +797,39 @@ function handleMicClick() {
     startRecording((text) => {
       if (text) {
         const command = parseVoiceCommand(text)
-        if (command && lastFlowActionContext.value) {
-          const ctx = lastFlowActionContext.value
-          handleFlowAction(ctx.flowId, command, ctx.actionText)
-          lastFlowActionContext.value = null
-        } else {
+        if (command && handleRecognizedFlowCommand(command)) return
+        if (text) {
           onSend({ text, api: api.value, options: options.value })
         }
       }
     })
   }
+}
+
+function handleRecognizedFlowCommand(command) {
+  const ctx = lastFlowActionContext.value
+  if (!ctx?.step || !ctx?.flowId) {
+    ElMessage.warning('当前没有可推进的流程节点')
+    return false
+  }
+
+  const actionText = resolveFlowActionText(ctx.step, command)
+  if (!actionText) {
+    ElMessage.warning('当前步骤不支持该语音指令')
+    return false
+  }
+
+  handleFlowAction(ctx.flowId, command, actionText)
+  lastFlowActionContext.value = null
+  return true
+}
+
+function resolveFlowActionText(step, command) {
+  if (!step) return ''
+  if (command === 'SUCCESS') return step.if_success || ''
+  if (command === 'FAILED') return step.if_failed || ''
+  if (command === 'NEXT') return step.if_next_step || step.if_success || ''
+  return ''
 }
 
 async function speakGuidance(msg) {
@@ -877,16 +988,14 @@ function handleHistoryClick(queryText) {
   activeTab.value = null
 }
 // ----------------------------------------------------------------------------------------------------------
-// 滚动到最新用户消息位置
-function scrollToLatestUserMessage() {
+function scrollToLatestMessage() {
   if (!scrollContainer.value) return
   
-  // 使用 nextTick 确保消息已渲染
   nextTick(() => {
-    const userBubbles = scrollContainer.value.querySelectorAll('.bubble.user')
-    if (userBubbles.length > 0) {
-      const lastUserBubble = userBubbles[userBubbles.length - 1]
-      lastUserBubble.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const bubbles = scrollContainer.value.querySelectorAll('.bubble')
+    if (bubbles.length > 0) {
+      const latestBubble = bubbles[bubbles.length - 1]
+      latestBubble.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   })
 }
@@ -894,7 +1003,7 @@ function scrollToLatestUserMessage() {
 async function onSend({ text, api: whichApi, options: opt }) {
   if (!text?.trim()) return
   messages.value.push({ role: 'user', text, time: Date.now() })
-  scrollToLatestUserMessage()
+  scrollToLatestMessage()
 
   const endpoint = whichApi === 'search_flow_solution' ? '/search_flow_solution' : '/search'
   const lastN = pickContext(messages.value, memoryLimit.value)
@@ -997,6 +1106,7 @@ async function onSend({ text, api: whichApi, options: opt }) {
       time: Date.now(),
       text: '❌ 请求失败，请稍后重试。'
     })
+    scrollToLatestMessage()
   } finally {
     loading.value = false
   }
@@ -1021,7 +1131,7 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
       feedbackType,
       time: Date.now()
     })
-    scrollToLatestUserMessage()
+    scrollToLatestMessage()
 
     // 显示助手端终点消息（可用 create_flow_progression_solution 中的 quick_diagnosis 文本替代）
     messages.value.push({
@@ -1041,7 +1151,7 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
     feedbackType: feedbackType,
     time: Date.now() 
   })
-  scrollToLatestUserMessage()
+  scrollToLatestMessage()
 
   const params = {
     query_text: queryText,
@@ -1090,6 +1200,7 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
       time: Date.now(),
       text: '❌ 请求失败，请稍后重试。'
     })
+    scrollToLatestMessage()
   } finally {
     loading.value = false
   }
@@ -1336,6 +1447,10 @@ function isVideo(url) {
     // 简单地检查 URL 是否以 .mp4 结尾（不区分大小写）
     return url.toLowerCase().endsWith('.mp4')
 }
+
+watch(() => messages.value.length, () => {
+  scrollToLatestMessage()
+})
 </script>
 
 
@@ -1381,10 +1496,10 @@ function isVideo(url) {
 }
 
 .tab-btn {
-  width: 60px;
-  height: 72px;
-  background: linear-gradient(145deg, #667eea 0%, #764ba2 50%, #8b5cf6 100%);
-  border-radius: 0 16px 16px 0;
+  width: 56px;
+  height: 68px;
+  background: linear-gradient(145deg, #1f5c54 0%, #2f7d72 50%, #4b9b8f 100%);
+  border-radius: 0 14px 14px 0;
   box-shadow: 
     3px 3px 15px rgba(102, 126, 234, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -1426,16 +1541,16 @@ function isVideo(url) {
 }
 
 .tab-btn:hover {
-  width: 72px;
-  transform: translateX(4px);
+  width: 64px;
+  transform: translateX(3px);
   box-shadow: 
     5px 5px 20px rgba(102, 126, 234, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .tab-btn.active {
-  width: 72px;
-  background: linear-gradient(145deg, #409EFF 0%, #5B8FF9 50%, #6BA8FF 100%);
+  width: 64px;
+  background: linear-gradient(145deg, #0f766e 0%, #159a8c 50%, #4bb3a7 100%);
   box-shadow: 
     5px 5px 20px rgba(64, 158, 255, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -1455,7 +1570,7 @@ function isVideo(url) {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 340px;
+  width: 320px;
   max-width: 85vw;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px);
@@ -1639,6 +1754,79 @@ function isVideo(url) {
   background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
 }
 
+.flow-shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 18px 6px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 249, 250, 0.92) 100%);
+  border-bottom: 1px solid rgba(228, 231, 237, 0.55);
+}
+
+.flow-shell-header.compact {
+  gap: 12px;
+}
+
+.flow-shell-copy {
+  max-width: 760px;
+}
+
+.flow-eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0f766e;
+}
+
+.flow-shell-copy h1,
+.flow-shell-copy p {
+  margin: 0;
+}
+
+.flow-shell-copy h1 {
+  font-size: 23px;
+  color: #1f2937;
+}
+
+.flow-shell-copy p:last-child {
+  margin-top: 4px;
+  color: #64748b;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.flow-header-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.flow-metric-card {
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(15, 118, 110, 0.12);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.flow-metric-card span,
+.flow-metric-card strong {
+  display: block;
+}
+
+.flow-metric-card span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.flow-metric-card strong {
+  margin-top: 6px;
+  color: #1f2937;
+}
+
 /* ========== 设备状态栏 ========== */
 .device-status-bar {
   border-bottom: 1px solid rgba(228, 231, 237, 0.6);
@@ -1648,7 +1836,7 @@ function isVideo(url) {
 }
 
 .status-compact {
-  padding: 14px 20px;
+  padding: 10px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1731,7 +1919,7 @@ function isVideo(url) {
 }
 
 .status-expanded {
-  padding: 20px;
+  padding: 14px 16px;
   border-top: 1px solid #f0f0f0;
   background: linear-gradient(180deg, #fafbfc 0%, #f5f7fa 100%);
 }
@@ -1844,17 +2032,65 @@ function isVideo(url) {
 .chat-messages-container {
   flex: 1;
   overflow-y: auto;
-  padding: 20px;
+  padding: 12px 16px;
   background: linear-gradient(180deg, #f5f7fa 0%, #eef1f6 100%);
 }
 
 .messages-wrapper {
-  max-width: 920px;
+  max-width: 1320px;
   margin: 0 auto;
 }
 
+.flow-empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 12px 0 4px;
+}
+
+.flow-empty-card {
+  padding: 24px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 118, 110, 0.08);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.06);
+}
+
+.flow-empty-card h2,
+.flow-empty-card p {
+  margin: 0;
+}
+
+.flow-empty-card p {
+  margin-top: 10px;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.flow-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.flow-starter {
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(15, 118, 110, 0.1);
+  background: rgba(255, 255, 255, 0.82);
+  color: #1f2937;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.flow-starter:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
 .bubble {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
   animation: fadeIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -1929,8 +2165,8 @@ function isVideo(url) {
 .assistant-content-box {
   flex: 1;
   background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-  padding: 18px 20px;
-  border-radius: 16px;
+  padding: 16px 18px;
+  border-radius: 18px;
   box-shadow: 
     0 4px 20px rgba(0, 0, 0, 0.08),
     0 2px 8px rgba(0, 0, 0, 0.06);
@@ -1950,7 +2186,7 @@ function isVideo(url) {
 }
 
 .assistant-head {
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 }
 
 .guidance {
@@ -1964,9 +2200,9 @@ function isVideo(url) {
 }
 
 .solution h4 {
-  font-size: 15px;
+  font-size: 14px;
   color: #606266;
-  margin: 18px 0 14px;
+  margin: 12px 0 10px;
   font-weight: 600;
 }
 
@@ -1977,15 +2213,15 @@ function isVideo(url) {
 }
 
 .flow-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
 }
 
 .flow-step {
   border: 1px solid rgba(228, 231, 237, 0.6);
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 18px;
+  padding: 16px 18px;
   background: linear-gradient(135deg, #fafbfc 0%, #f5f7fa 100%);
   box-shadow: 
     0 2px 12px rgba(0, 0, 0, 0.06),
@@ -2003,35 +2239,76 @@ function isVideo(url) {
 .step-header {
   display: flex;
   align-items: center;
-  margin-bottom: 14px;
-  padding-bottom: 14px;
-  border-bottom: 2px solid rgba(228, 231, 237, 0.4);
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(228, 231, 237, 0.55);
 }
 
 .step-body {
   color: #606266;
 }
 
+.step-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(360px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.step-text-panel {
+  min-width: 0;
+}
+
+.step-media-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
 .step-body .desc {
-  margin-bottom: 10px;
-  line-height: 1.7;
-  font-size: 16px;
+  margin-bottom: 8px;
+  line-height: 1.55;
+  font-size: 14px;
   font-weight: 500;
 }
 
 .step-body .expected {
-  margin-bottom: 14px;
-  padding: 12px 16px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
   background: linear-gradient(135deg, #ecf5ff 0%, #e1f0ff 100%);
-  border-left: 4px solid #409EFF;
+  border-left: 3px solid #409EFF;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(64, 158, 255, 0.1);
   font-weight: 500;
-  line-height: 1.6;
+  line-height: 1.45;
+  font-size: 13px;
 }
 
-.safety-notes {
-  margin: 14px 0;
+.safety-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.safety-inline-label {
+  font-size: 12px;
+  color: #b45309;
+  font-weight: 700;
+}
+
+.safety-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 12px;
 }
 
 .safety-notes ul {
@@ -2045,7 +2322,7 @@ function isVideo(url) {
 }
 
 .flow-actions {
-  margin-top: 20px;
+  margin-top: 12px;
 }
 
 .action-card {
@@ -2216,15 +2493,10 @@ function isVideo(url) {
 .mt-4 { margin-top: 16px; }
 
 /* ========== 图片和视频样式 ========== */
-.step-images {
-  display: grid;
-  gap: 14px;
-  margin: 14px 0;
-}
-
 .image-wrapper {
   position: relative;
   width: 100%;
+  min-height: 168px;
   border-radius: 12px;
   overflow: hidden;
   background: linear-gradient(135deg, #f5f7fa 0%, #eef1f6 100%);
@@ -2258,6 +2530,7 @@ function isVideo(url) {
 .step-media-item {
   width: 100%;
   height: 100%;
+  min-height: 168px;
   object-fit: cover;
   display: block;
 }
@@ -2290,8 +2563,64 @@ function isVideo(url) {
 .chat-input-area {
   border-top: 1px solid rgba(228, 231, 237, 0.6);
   background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
-  padding: 16px 20px;
+  padding: 8px 12px;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.voice-briefing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #edf7f4 0%, #f7faf9 100%);
+  color: #29423f;
+  flex-wrap: wrap;
+}
+
+.voice-briefing-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.voice-state-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #94a3b8;
+}
+
+.voice-state-dot.info {
+  background: #0f766e;
+}
+
+.voice-state-dot.warning {
+  background: #d97706;
+}
+
+.voice-state-dot.success {
+  background: #15803d;
+}
+
+.voice-state-dot.danger {
+  background: #dc2626;
+}
+
+.voice-state-dot.neutral {
+  background: #94a3b8;
+}
+
+.voice-state-dot.pulsing {
+  animation: statusPulse 1.2s infinite;
+}
+
+.voice-briefing-side {
+  font-size: 12px;
+  color: #64748b;
 }
 
 .footer-note {
@@ -2307,11 +2636,41 @@ function isVideo(url) {
   color: #67c23a;
   font-weight: 600;
 }
+
+@keyframes statusPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.34);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(15, 118, 110, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(15, 118, 110, 0);
+  }
+}
 /* 容器：悬浮在面板右侧边缘 */
 
 
 /* ========== 响应式设计 ========== */
 @media (max-width: 768px) {
+.flow-shell-header {
+  flex-direction: column;
+}
+
+.flow-header-metrics,
+.flow-starter-grid,
+.flow-steps {
+  grid-template-columns: 1fr;
+}
+
+.step-layout {
+  grid-template-columns: 1fr;
+}
+
+.step-media-panel {
+  grid-template-columns: 1fr;
+}
+
 .sidebar-container {
   position: fixed;
   left: 0;

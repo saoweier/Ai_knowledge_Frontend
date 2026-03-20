@@ -1,543 +1,547 @@
 <template>
-  <div class="app">
-    <!-- 左侧整块侧边栏 -->
+  <div class="chat-workbench">
     <aside
-      class="sidebar"
+      class="session-sidebar"
       :class="{ collapsed: sidebarCollapsed }"
     >
-      <div class="sidebar-header">
-        <span
-          v-show="!sidebarCollapsed"
-          class="sidebar-title"
-        >设备智能专家</span>
+      <div class="sidebar-top">
+        <div
+          v-if="!sidebarCollapsed"
+          class="brand-block"
+        >
+          <p>Chat 工作台</p>
+          <h2>设备智能专家</h2>
+        </div>
         <el-button
           class="collapse-btn"
-          type="text"
-          size="large"
+          text
           circle
           @click="sidebarCollapsed = !sidebarCollapsed"
         >
-          <el-icon size="20">
+          <el-icon>
             <ArrowLeft v-if="!sidebarCollapsed" />
             <ArrowRight v-else />
           </el-icon>
         </el-button>
       </div>
 
-      <transition name="fade">
-        <div
-          v-show="!sidebarCollapsed"
-          class="sidebar-content"
-        >
-          <el-scrollbar class="sidebar-body">
-            <div
-              v-for="(s, i) in sessions"
-              :key="i"
-              class="session-item"
-              :class="{ active: i === activeSession }"
-              @click="switchSession(i)"
-            >
-              <div class="session-title">
-                {{ s.title }}
-              </div>
-              <div class="session-time">
-                {{ formatTime(s.updatedAt) }}
-              </div>
-            </div>
-          </el-scrollbar>
-
-          <div class="sidebar-footer">
-            <el-button
-              size="small"
-              type="primary"
-              plain
-              @click="newSession"
-            >
-              新建对话
-            </el-button>
-          </div>
+      <div
+        v-if="!sidebarCollapsed"
+        class="sidebar-body"
+      >
+        <div class="sidebar-summary">
+          <span>会话数 {{ sessions.length }}</span>
+          <span>当前 {{ activeSession + 1 }}</span>
         </div>
-      </transition>
+
+        <el-scrollbar class="session-scroll">
+          <button
+            v-for="(session, index) in sessions"
+            :key="session.id"
+            type="button"
+            class="session-card"
+            :class="{ active: index === activeSession }"
+            @click="switchSession(index)"
+          >
+            <strong>{{ session.title }}</strong>
+            <span>{{ summarizeSession(session) }}</span>
+            <small>{{ formatTime(session.updatedAt) }}</small>
+          </button>
+        </el-scrollbar>
+
+        <el-button
+          type="primary"
+          class="new-session-btn"
+          @click="newSession"
+        >
+          新建对话
+        </el-button>
+      </div>
     </aside>
 
-    <!-- 移动端遮罩层 -->
-    <div 
-      v-if="!sidebarCollapsed" 
-      class="sidebar-overlay"
-      @click="sidebarCollapsed = true"
-    />
-
-    <!-- 移动端菜单按钮（始终存在，通过CSS控制显示） -->
-    <button 
-      class="mobile-menu-btn"
-      :class="{ 'is-hidden': !sidebarCollapsed }"
-      aria-label="打开菜单"
-      @click="sidebarCollapsed = false"
-    >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2"
-        stroke-linecap="round"
-        stroke-linejoin="round"
+    <main class="conversation-shell">
+      <header
+        class="shell-header"
+        :class="{ compact: messages.length > 0 }"
       >
-        <line
-          x1="3"
-          y1="12"
-          x2="21"
-          y2="12"
-        />
-        <line
-          x1="3"
-          y1="6"
-          x2="21"
-          y2="6"
-        />
-        <line
-          x1="3"
-          y1="18"
-          x2="21"
-          y2="18"
-        />
-      </svg>
-    </button>
+        <div>
+          <p class="eyebrow">统一对话工作台</p>
+          <h1>设备诊断与知识问答</h1>
+          <p class="header-copy">统一问答、排查和知识复盘，重点保留在核心消息区。</p>
+        </div>
+        <div class="header-side">
+          <div class="header-pill">
+            <span>当前接口</span>
+            <strong>{{ apiLabel }}</strong>
+          </div>
+          <div class="header-pill">
+            <span>上下文</span>
+            <strong>{{ memoryLimit }} 条</strong>
+          </div>
+        </div>
+      </header>
 
-    <!-- 右侧主区域 -->
-    <main class="main">
-      <!-- 顶部总结区（无消息时居中） -->
-      <div
+      <section
         v-if="messages.length === 0"
-        class="summary"
+        class="empty-state"
       >
-        <img
-          src="/expert.png"
-          class="summary-logo"
-          alt="Logo"
-        >
-        <h2 class="summary-title">
-          设备智能专家
-        </h2>
-        <p class="summary-subtitle">
-          基于向量知识库 + LLM 的工业级智能诊断系统
-        </p>
-      </div>
-
-      <!-- 对话区 -->
-      <div
-        v-else
-        class="chat"
-      >
-        <el-scrollbar class="messages">
-          <template
-            v-for="(msg, idx) in messages"
-            :key="idx"
+        <div class="empty-hero">
+          <img
+            src="/expert.png"
+            alt="设备智能专家"
+            class="hero-logo"
           >
-            <!-- 用户消息 -->
+          <div>
+            <h2>把问题描述完整一些，系统会更快给出诊断路径</h2>
+            <p>适合输入故障现象、报警码、维修步骤、设备型号，或直接让系统总结知识点。</p>
+          </div>
+        </div>
+
+        <div class="prompt-grid">
+          <button
+            v-for="prompt in recommendedPrompts"
+            :key="prompt"
+            type="button"
+            class="prompt-card"
+            @click="sendPrompt(prompt)"
+          >
+            {{ prompt }}
+          </button>
+        </div>
+      </section>
+
+      <el-scrollbar
+        v-else
+        ref="messageScrollRef"
+        class="message-scroll"
+      >
+        <div class="message-stack">
+          <template
+            v-for="(msg, index) in messages"
+            :key="index"
+          >
             <div
               v-if="msg.role === 'user'"
-              class="bubble user"
+              class="message-row user"
             >
-              <div class="bubble-content">
-                {{ msg.text }}
-              </div>
-              <div class="meta">
-                {{ formatTime(msg.time) }}
+              <div class="message-card user-card">
+                <div class="message-body">
+                  {{ msg.text }}
+                </div>
+                <div class="message-time">
+                  {{ formatTime(msg.time) }}
+                </div>
               </div>
             </div>
-            
-            <!-- 助手消息 -->
+
             <div
               v-else
-              class="bubble assistant"
+              class="message-row assistant"
             >
-              <!-- 引导信息 -->
-              <div
-                v-if="msg.guidance"
-                class="guidance-alert"
-              >
-                <el-alert
-                  :title="msg.guidance"
-                  type="info"
-                  show-icon
-                  :closable="false"
-                />
+              <div class="assistant-avatar">
+                <img
+                  src="/expert.png"
+                  alt="assistant"
+                >
               </div>
 
-              <!-- 结构化解决方案 -->
-              <div
-                v-if="msg.solution"
-                class="solution-container"
-              >
-                <!-- 问题摘要 -->
-                <div class="problem-summary">
-                  <h3>问题摘要</h3>
-                  <p>{{ msg.solution.problem_summary }}</p>
-                </div>
-
-                <!-- 快速诊断 -->
-                <div
-                  v-if="msg.solution.quick_diagnosis"
-                  class="quick-diagnosis"
+              <div class="message-card assistant-card">
+                <el-alert
+                  v-if="msg.guidance"
+                  type="info"
+                  :closable="false"
+                  class="guidance-alert"
                 >
-                  <el-tag
-                    type="success"
-                    size="large"
+                  <template #title>
+                    {{ msg.guidance }}
+                  </template>
+                </el-alert>
+
+                <template v-if="msg.solution">
+                  <div class="summary-grid">
+                    <article class="summary-card">
+                      <span>问题摘要</span>
+                      <strong>{{ msg.solution.problem_summary || '未提供' }}</strong>
+                    </article>
+                    <article class="summary-card highlight">
+                      <span>核心结论</span>
+                      <strong>{{ msg.solution.quick_diagnosis || '等待进一步判断' }}</strong>
+                    </article>
+                  </div>
+
+                  <div
+                    v-if="msg.solution.troubleshooting_steps?.length"
+                    class="content-section"
                   >
-                    <el-icon><CircleCheck /></el-icon>
-                    {{ msg.solution.quick_diagnosis }}
-                  </el-tag>
-                </div>
-
-                <!-- 故障排查步骤 -->
-                <div
-                  v-if="msg.solution.troubleshooting_steps?.length"
-                  class="troubleshooting-steps"
-                >
-                  <h3>排查步骤</h3>
-                  
-                  <el-timeline>
-                    <el-timeline-item
-                      v-for="(step, stepIdx) in msg.solution.troubleshooting_steps"
-                      :key="stepIdx"
-                      :color="getStepColor(step.category)"
-                      :hollow="msg.stepsState?.[stepIdx]"
-                      size="large"
-                    >
-                      <el-card class="step-card">
-                        <!-- 步骤头部 -->
-                        <template #header>
-                          <div class="step-header">
-                            <div class="step-title-row">
-                              <el-tag
-                                :type="getCategoryType(step.category)"
-                                size="small"
-                              >
-                                {{ getCategoryLabel(step.category) }}
-                              </el-tag>
-                              <h4>步骤 {{ step.step_number }}: {{ step.title }}</h4>
-                            </div>
-                            <el-checkbox
-                              v-model="msg.stepsState[stepIdx]"
-                              size="large"
-                              @change="updateStepState(idx, stepIdx)"
-                            >
-                              完成
-                            </el-checkbox>
-                          </div>
-                        </template>
-
-                        <!-- 步骤描述 -->
-                        <div class="step-description">
-                          <p v-html="formatDescription(step.description)" />
+                    <div class="section-head">
+                      <h3>操作建议</h3>
+                      <span>共 {{ msg.solution.troubleshooting_steps.length }} 步</span>
+                    </div>
+                    <div class="step-list">
+                      <article
+                        v-for="(step, stepIndex) in msg.solution.troubleshooting_steps"
+                        :key="stepIndex"
+                        class="step-card"
+                      >
+                        <div class="step-head">
+                          <el-tag
+                            size="small"
+                            :type="getCategoryType(step.category)"
+                          >
+                            {{ getCategoryLabel(step.category) }}
+                          </el-tag>
+                          <strong>步骤 {{ step.step_number || stepIndex + 1 }} · {{ step.title }}</strong>
                         </div>
-
-                        <!-- 图片/视频展示 -->
-                        <div
-                          v-if="step.images?.length"
-                          class="step-media"
-                        >
-                          <h5>参考资料</h5>
-                          <div class="media-grid">
-                            <div
-                              v-for="(mediaUrl, mediaIdx) in step.images"
-                              :key="mediaIdx"
-                              class="media-item"
-                            >
-                              <!-- 视频 -->
-                              <video
-                                v-if="isVideo(mediaUrl)"
-                                :src="mediaUrl"
-                                controls
-                                class="media-video"
-                                preload="metadata"
-                              >
-                                您的浏览器不支持视频播放
-                              </video>
-                              
-                              <!-- 图片 -->
-                              <el-image
-                                v-else
-                                :src="mediaUrl"
-                                :preview-src-list="[mediaUrl]"
-                                fit="cover"
-                                class="media-image"
-                                lazy
-                              >
-                                <template #error>
-                                  <div class="image-error">
-                                    <el-icon><Picture /></el-icon>
-                                    <span>加载失败</span>
-                                  </div>
-                                </template>
-                              </el-image>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- 预期结果 -->
-                        <div
+                        <p>{{ step.description }}</p>
+                        <p
                           v-if="step.expected_result"
                           class="step-expected"
                         >
-                          <el-icon color="#67c23a">
-                            <Select />
-                          </el-icon>
-                          <strong>预期结果:</strong> {{ step.expected_result }}
-                        </div>
-
-                        <!-- 工具需求 -->
+                          预期结果：{{ step.expected_result }}
+                        </p>
                         <div
-                          v-if="step.tools_needed?.length"
-                          class="step-tools"
+                          v-if="step.images?.length"
+                          class="media-grid"
                         >
-                          <el-icon><Tools /></el-icon>
-                          <strong>所需工具:</strong>
-                          <el-tag
-                            v-for="(tool, toolIdx) in step.tools_needed"
-                            :key="toolIdx"
-                            size="small"
-                            class="tool-tag"
+                          <template
+                            v-for="(mediaUrl, mediaIndex) in step.images"
+                            :key="mediaIndex"
                           >
-                            {{ tool }}
-                          </el-tag>
+                            <video
+                              v-if="isVideo(mediaUrl)"
+                              :src="mediaUrl"
+                              controls
+                              class="media-item"
+                            />
+                            <el-image
+                              v-else
+                              :src="mediaUrl"
+                              fit="cover"
+                              class="media-item"
+                              :preview-src-list="step.images.filter((item) => !isVideo(item))"
+                              :initial-index="getUiImageIndex(step.images, mediaUrl)"
+                              :preview-teleported="true"
+                            />
+                          </template>
                         </div>
+                      </article>
+                    </div>
+                  </div>
 
-                        <!-- 安全提示 -->
-                        <div
-                          v-if="step.safety_notes?.length"
-                          class="step-safety"
+                  <div
+                    v-if="msg.solution.related_knowledge?.length"
+                    class="content-section"
+                  >
+                    <div class="section-head">
+                      <h3>参考资料</h3>
+                      <span>{{ msg.solution.related_knowledge.length }} 条</span>
+                    </div>
+                    <el-collapse>
+                      <el-collapse-item
+                        title="展开查看参考知识"
+                        name="references"
+                      >
+                        <article
+                          v-for="(item, refIndex) in msg.solution.related_knowledge"
+                          :key="refIndex"
+                          class="knowledge-card"
                         >
-                          <el-alert
-                            type="warning"
-                            :closable="false"
-                          >
-                            <template #title>
-                              <el-icon><Warning /></el-icon>
-                              <strong>安全提示</strong>
-                            </template>
-                            <ul class="safety-list">
-                              <li
-                                v-for="(note, noteIdx) in step.safety_notes"
-                                :key="noteIdx"
-                              >
-                                {{ note }}
-                              </li>
-                            </ul>
-                          </el-alert>
-                        </div>
+                          <div class="knowledge-head">
+                            <strong>{{ item.chunk_id || `参考项 ${refIndex + 1}` }}</strong>
+                            <span>匹配度 {{ (item.score ?? 0).toFixed(2) }}</span>
+                          </div>
+                          <p>{{ item.content }}</p>
+                        </article>
+                      </el-collapse-item>
+                    </el-collapse>
+                  </div>
+                </template>
 
-                        <!-- 失败处理 -->
-                        <div
-                          v-if="step.if_failed"
-                          class="step-failed"
-                        >
-                          <el-icon color="#f56c6c">
-                            <WarningFilled />
-                          </el-icon>
-                          <strong>失败处理:</strong> {{ step.if_failed }}
-                        </div>
-                      </el-card>
-                    </el-timeline-item>
-                  </el-timeline>
+                <div v-else class="plain-answer">
+                  {{ msg.text }}
                 </div>
-              </div>
 
-              <!-- 纯文本回复 -->
-              <div
-                v-else
-                class="text-response"
-              >
-                {{ msg.text }}
-              </div>
-
-              <div class="meta">
-                {{ formatTime(msg.time) }}
+                <div class="message-time">
+                  {{ formatTime(msg.time) }}
+                </div>
               </div>
             </div>
           </template>
-        </el-scrollbar>
-      </div>
+        </div>
+      </el-scrollbar>
 
-      <!-- 输入框 -->
-      <div :class="['input-wrapper', { 'input-center': messages.length === 0, 'input-bottom': messages.length > 0 }]">
+      <footer class="input-dock">
         <MessageInput
           :loading="loading"
           :default-api="api"
           :default-options="options"
           :default-memory-limit="memoryLimit"
+          :voice-enabled="voiceEnabled"
+          :is-recording="isRecording"
+          :is-speaking="isSpeaking"
+          :placeholder="'描述设备故障、输入报警码，或让系统总结已有知识'"
+          :context-hint="'输入故障、知识点或总结请求'"
+          :mode-label="'Chat 对话'"
+          :voice-state-label="voiceStateLabel"
+          :voice-tone="voiceStatusTone"
+          :recognized-text="recognizedText"
+          :voice-error="lastError"
           @send="onSend"
-          @clear="clearAll"
-          @update:api="(v) => api = v"
-          @update:options="(v) => options = v"
-          @update:memory="(n) => memoryLimit = n"
+          @update:api="(value) => api = value"
+          @update:options="(value) => options = value"
+          @update:memory="(value) => memoryLimit = value"
+          @update:voice-enabled="(value) => handleVoiceToggle(value)"
+          @voice-toggle="handleVoiceToggle"
+          @mic-click="handleMicClick"
+          @stop-speaking="stopSpeaking"
         />
-      </div>
+      </footer>
     </main>
   </div>
 </template>
 
-
-
 <script setup>
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  CircleCheck, 
-  Select, 
-  Tools, 
-  Warning, 
-  WarningFilled,
-  Picture 
-} from '@element-plus/icons-vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import { ElLoading, ElMessage } from 'element-plus'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import http from '@/api/http'
 import MessageInput from '@/components/MessageInput.vue'
-// import { useUserStore } from "@/stores/user"
+import { useVoiceController } from '@/composables/useVoiceController'
 
-// const user = useUserStore()
-
-// 会话管理
-const sidebarCollapsed = ref(true)
-const sessions = ref([{ title: '当前对话', messages: [], updatedAt: Date.now() }])
+const sidebarCollapsed = ref(false)
+const sessions = ref([{ id: Date.now(), title: '当前对话', messages: [], updatedAt: Date.now() }])
 const activeSession = ref(0)
 const messages = ref(sessions.value[0].messages)
+const messageScrollRef = ref(null)
 
-function switchSession(i) {
-  activeSession.value = i
-  messages.value = sessions.value[i].messages
-}
-
-function newSession() {
-  sessions.value.unshift({ title: '新对话', messages: [], updatedAt: Date.now() })
-  switchSession(0)
-}
-
-// 对话状态
 const loading = ref(false)
 const api = ref('search_with_solution')
 const options = ref({ enableLLM: true, forceContent: '', diversify: true })
 const memoryLimit = ref(3)
 
-// 发送消息
-async function onSend({ text, api: whichApi, options: opt }) {
-  if (!text?.trim()) return
-  
-  messages.value.push({ role: 'user', text, time: Date.now() })
+const {
+  voiceEnabled,
+  isRecording,
+  isSpeaking,
+  recognizedText,
+  lastError,
+  voiceStateLabel,
+  voiceStatusTone,
+  setVoiceEnabled,
+  startWakeWordDetection,
+  stopWakeWordDetection,
+  startRecording,
+  stopRecording,
+  speakText,
+  stopSpeaking
+} = useVoiceController()
 
-  const lastN = pickContext(messages.value, memoryLimit.value)
-  const endpoint = whichApi === 'search_with_solution' ? '/search_with_solution' : '/search'
-  let params = { query_text: text }
+const recommendedPrompts = [
+  '拉丝机触摸屏报 PLC 异常，先排查什么？',
+  '故障代码 F7016 说明什么，建议怎么处理？',
+  '总结一下最近一次维修记录中的关键步骤',
+  '把这个问题拆成检查、调整和更换三部分建议'
+]
 
-  if (whichApi === 'search_with_solution') {
-    params.enable_llm_integration = !!opt.enableLLM
-    if (opt.forceContent) params.force_content_type = opt.forceContent
+const apiLabel = computed(() => {
+  if (api.value === 'search_with_solution') return '增强搜索'
+  if (api.value === 'search') return '基础搜索'
+  return api.value
+})
+
+function currentSession() {
+  return sessions.value[activeSession.value]
+}
+
+function syncSessionMeta(seedText = '') {
+  const session = currentSession()
+  if (!session) return
+  session.updatedAt = Date.now()
+  if (seedText && (session.title === '当前对话' || session.title === '新对话')) {
+    session.title = seedText.slice(0, 16)
+  }
+}
+
+function switchSession(index) {
+  activeSession.value = index
+  messages.value = sessions.value[index].messages
+  scrollToLatestCard(false)
+}
+
+function newSession() {
+  sessions.value.unshift({
+    id: Date.now(),
+    title: '新对话',
+    messages: [],
+    updatedAt: Date.now()
+  })
+  switchSession(0)
+}
+
+function summarizeSession(session) {
+  const firstUser = session.messages.find((item) => item.role === 'user')
+  if (!firstUser) return '暂无消息'
+  return firstUser.text.slice(0, 18)
+}
+
+async function handleVoiceToggle(enabled) {
+  setVoiceEnabled(enabled)
+  if (enabled) {
+    await startWakeWordDetection(() => {
+      handleMicClick()
+    })
   } else {
-    if (opt.forceContent) params.force_content_type = opt.forceContent
-    params.diversify_results = !!opt.diversify
+    stopWakeWordDetection()
+    stopSpeaking()
+  }
+}
+
+function handleMicClick() {
+  if (!voiceEnabled.value) return
+  if (isRecording.value) {
+    stopRecording()
+    return
   }
 
+  stopSpeaking()
+  startRecording((text) => {
+    if (text) {
+      onSend({ text, api: api.value, options: options.value })
+    }
+  })
+}
+
+async function onSend({ text, api: whichApi, options: currentOptions }) {
+  if (!text?.trim()) return
+
+  syncSessionMeta(text)
+  messages.value.push({ role: 'user', text, time: Date.now() })
+  scrollToLatestCard()
+
+  const lastN = pickContext(messages.value, memoryLimit.value)
   loading.value = true
   try {
-    let resp
-    try {
-      resp = await http.get(endpoint, {
-        params: { ...params, context_json: JSON.stringify(lastN) }
+    if (whichApi === 'search_with_solution') {
+      const thinking = ElLoading.service({
+        lock: true,
+        text: '模型思考中，请稍候…',
+        background: 'rgba(15, 23, 42, 0.22)'
       })
-    } catch (err) {
-      if (err?.response?.status === 422) {
-        resp = await http.get(endpoint, { params })
-      } else {
-        throw err
+      let response
+      try {
+        response = await http.get('/search_with_solution', {
+          params: {
+            query_text: text,
+            enable_llm_integration: !!currentOptions.enableLLM,
+            force_content_type: currentOptions.forceContent || undefined,
+            context_json: JSON.stringify(lastN)
+          }
+        })
+      } finally {
+        thinking.close()
       }
-    }
 
-    const data = resp.data || {}
-
-    if (data.progressive_solution) {
-      const steps = data.progressive_solution?.troubleshooting_steps || []
-      messages.value.push({
+      const data = response.data || {}
+      const assistantMessage = {
         role: 'assistant',
         time: Date.now(),
         guidance: data.guidance || '',
         query_intent: data.query_intent || '',
-        solution: data.progressive_solution,
-        stepsState: steps.map(() => false)
-      })
+        solution: data.progressive_solution || null,
+        text: data.answer || data.message || data.guidance || '（无可展示内容）'
+      }
+      messages.value.push(assistantMessage)
+      scrollToLatestCard()
+      await speakAssistantSummary(assistantMessage)
     } else {
-      const textAnswer = data.answer || data.message || data.guidance || '（无可展示内容）'
-      messages.value.push({
+      const params = {
+        query_text: text,
+        context_json: JSON.stringify(lastN)
+      }
+      if (currentOptions.forceContent) params.force_content_type = currentOptions.forceContent
+      params.diversify_results = !!currentOptions.diversify
+
+      const response = await http.get('/search', { params })
+      const data = response.data || {}
+      const assistantMessage = {
         role: 'assistant',
         time: Date.now(),
         guidance: data.guidance || '',
         query_intent: data.query_intent || '',
-        text: textAnswer
-      })
+        text: data.answer || data.message || data.guidance || '（无可展示内容）'
+      }
+      messages.value.push(assistantMessage)
+      scrollToLatestCard()
+      await speakAssistantSummary(assistantMessage)
     }
-  } catch (e) {
-    console.error(e)
-    ElMessage.error('请求失败,请检查后端服务或控制台日志')
+
+    syncSessionMeta()
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('请求失败，请检查后端服务或控制台日志')
     messages.value.push({
       role: 'assistant',
       time: Date.now(),
-      text: '❌ 请求失败,请稍后重试。'
+      text: '请求失败，请稍后重试。'
     })
   } finally {
     loading.value = false
   }
 }
 
-function clearAll() {
-  messages.value = []
+async function speakAssistantSummary(message) {
+  if (!voiceEnabled.value || isSpeaking.value) return
+
+  const segments = []
+  if (message.guidance) segments.push(message.guidance)
+  if (message.solution?.quick_diagnosis) segments.push(`核心结论：${message.solution.quick_diagnosis}`)
+  if (message.text) segments.push(message.text)
+  if (!segments.length) return
+  await speakText(segments.join('。'))
 }
 
-function pickContext(all, n) {
-  const recent = all.slice(-n)
-  return recent.map((m) => {
-    if (m.role === 'user') {
-      return { role: 'user', content: m.text }
-    } else {
-      if (m.solution?.troubleshooting_steps?.length) {
-        const titles = m.solution.troubleshooting_steps.map(s => s.title).join('；')
-        return {
-          role: 'assistant',
-          content: `【摘要】${m.solution.quick_diagnosis || ''}；【步骤】${titles}`
-        }
-      }
-      return { role: 'assistant', content: m.text || m.guidance || '' }
+function sendPrompt(prompt) {
+  onSend({ text: prompt, api: api.value, options: options.value })
+}
+
+function scrollToLatestCard(smooth = true) {
+  nextTick(() => {
+    const wrap = messageScrollRef.value?.wrapRef
+    const target = wrap?.querySelector('.message-stack .message-card:last-of-type')
+    if (target) {
+      target.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' })
     }
   })
 }
 
-// UI 辅助函数
-function formatTime(ts) {
-  const d = new Date(ts)
-  const pad = (n) => (n < 10 ? '0' + n : '' + n)
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+function pickContext(allMessages, count) {
+  const recent = allMessages.slice(-count)
+  return recent.map((message) => {
+    if (message.role === 'user') return { role: 'user', content: message.text }
+    if (message.solution?.troubleshooting_steps?.length) {
+      const titles = message.solution.troubleshooting_steps.map((step) => step.title).join('；')
+      return {
+        role: 'assistant',
+        content: `【摘要】${message.solution.quick_diagnosis || ''}；【步骤】${titles}`
+      }
+    }
+    return { role: 'assistant', content: message.text || message.guidance || '' }
+  })
 }
 
-function formatDescription(desc) {
-  if (!desc) return ''
-  // 将分号分隔的内容转为列表
-  return desc.split('；').map(item => `<p>• ${item.trim()}</p>`).join('')
+function formatTime(timestamp) {
+  const date = new Date(timestamp)
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function isVideo(url) {
   return /\.(mp4|webm|ogg|mov)$/i.test(url)
 }
 
-function getStepColor(category) {
-  const colors = {
-    inspection: '#409EFF',
-    adjustment: '#E6A23C',
-    replacement: '#F56C6C',
-    test: '#67C23A'
-  }
-  return colors[category] || '#909399'
+function getUiImageIndex(allImages, currentUrl) {
+  const imagesOnly = allImages.filter((item) => !isVideo(item))
+  return imagesOnly.indexOf(currentUrl)
 }
 
 function getCategoryType(category) {
@@ -560,736 +564,450 @@ function getCategoryLabel(category) {
   return labels[category] || '其他'
 }
 
-function updateStepState(msgIdx, stepIdx) {
-  console.log(`步骤 ${stepIdx + 1} 状态更新`)
-}
+watch(() => messages.value.length, () => {
+  scrollToLatestCard(false)
+})
 </script>
 
-
 <style scoped>
-/* ==================== 全局布局 ==================== */
-.app {
-  display: flex;
-  height: calc(100vh - 64px); /* 减去导航栏高度 */
-  height: calc(100dvh - 64px); /* 动态视口高度，避免移动端地址栏问题 */
-  max-height: calc(100vh - 64px);
-  max-height: calc(100dvh - 64px);
-  overflow: hidden;
-  background: #f5f7fb;
-  position: relative;
+.chat-workbench {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  height: calc(100vh - 64px);
+  background:
+    radial-gradient(circle at top left, rgba(17, 94, 89, 0.08), transparent 25%),
+    linear-gradient(180deg, #f4f2eb 0%, #eef3f0 100%);
 }
 
-/* ==================== 侧边栏样式 ==================== */
-.sidebar {
-  width: 280px;
+.session-sidebar {
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
-  color: #e5e7eb;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
+  padding: 18px;
+  background: linear-gradient(180deg, #16322f 0%, #0f201e 100%);
+  color: #eaf4f1;
 }
 
-.sidebar.collapsed {
-  width: 64px;
+.session-sidebar.collapsed {
+  width: 88px;
+  padding-inline: 14px;
 }
 
-.sidebar-header {
-  padding: 16px;
+.sidebar-top {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  min-height: 64px;
+  gap: 12px;
 }
 
-.sidebar-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #fff;
-  white-space: nowrap;
+.brand-block p,
+.brand-block h2 {
+  margin: 0;
+}
+
+.brand-block p {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.brand-block h2 {
+  margin-top: 4px;
+  font-size: 22px;
 }
 
 .collapse-btn {
-  color: #9ca3af;
-  transition: color 0.2s;
-}
-
-.collapse-btn:hover {
-  color: #fff;
-}
-
-.sidebar-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
+  color: #eaf4f1;
 }
 
 .sidebar-body {
-  flex: 1;
-  padding: 8px 0;
-}
-
-.session-item {
-  padding: 12px 16px;
-  margin: 4px 8px;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
-}
-
-.session-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.session-item.active {
-  background: rgba(59, 130, 246, 0.2);
-  border-left: 3px solid #3b82f6;
-}
-
-.session-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #f3f4f6;
-  margin-bottom: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.session-time {
-  font-size: 12px;
-  color: #9ca3af;
-}
-
-.sidebar-footer {
-  padding: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.sidebar-footer .el-button {
-  width: 100%;
-}
-
-/* 侧边栏遮罩层 (仅移动端显示) */
-.sidebar-overlay {
-  display: none;
-}
-
-/* 移动端菜单按钮 */
-.mobile-menu-btn {
-  position: fixed;
-  top: 56px;
-  left: 16px;
-  z-index: 998;
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: white;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  display: none; /* PC端默认隐藏 */
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  color: #1e293b;
-  padding: 0;
-  outline: none;
-}
-
-.mobile-menu-btn.is-hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: scale(0.8);
-}
-
-.mobile-menu-btn:hover {
-  background: #f8fafc;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-  transform: translateY(-1px);
-}
-
-.mobile-menu-btn:active {
-  transform: scale(0.95) translateY(0);
-}
-
-.mobile-menu-btn svg {
-  display: block;
-}
-
-/* ==================== 主内容区域 ==================== */
-.main {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  position: relative;
-  min-width: 0; /* 防止 flex 子元素溢出 */
-  height: 100%;
-}
-
-/* ==================== 欢迎页 ==================== */
-.summary {
+  gap: 14px;
+  min-height: 0;
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  text-align: center;
+  margin-top: 18px;
 }
 
-.summary-logo {
-  width: 120px;
-  height: 120px;
-  margin-bottom: 24px;
-  border-radius: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.summary-title {
-  font-size: 32px;
-  font-weight: 700;
-  color: #1e293b;
-  margin-bottom: 12px;
-}
-
-.summary-subtitle {
-  font-size: 16px;
-  color: #64748b;
-  max-width: 500px;
-  line-height: 1.6;
-}
-
-/* ==================== 对话区域 ==================== */
-.chat {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0; /* 关键：允许 flex 子元素正确缩小 */
-}
-
-.messages {
-  flex: 1;
-  padding: 24px;
-}
-
-.messages > div {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* ==================== 消息气泡 ==================== */
-.bubble {
-  max-width: 70%;
-  padding: 14px 18px;
-  border-radius: 16px;
-  line-height: 1.6;
-  word-wrap: break-word;
-  animation: slideIn 0.3s ease-out;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.bubble.user {
-  align-self: flex-end;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
-}
-
-.bubble.assistant {
-  align-self: flex-start;
-  background: white;
-  color: #1e293b;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e2e8f0;
-}
-
-.bubble-content {
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.meta {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-top: 8px;
-}
-
-.bubble.assistant .meta {
-  color: #94a3b8;
-}
-
-/* ==================== 解决方案样式 ==================== */
-.guidance-alert {
-  margin-bottom: 16px;
-}
-
-.solution-container {
-  margin-top: 12px;
-}
-
-.problem-summary {
-  padding: 16px;
-  background: #f8fafc;
-  border-radius: 12px;
-  border-left: 4px solid #3b82f6;
-  margin-bottom: 20px;
-}
-
-.problem-summary h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 8px 0;
-}
-
-.problem-summary p {
-  font-size: 14px;
-  color: #475569;
-  margin: 0;
-  line-height: 1.6;
-}
-
-.quick-diagnosis {
-  margin-bottom: 24px;
-}
-
-.quick-diagnosis .el-tag {
-  padding: 8px 16px;
-  font-size: 14px;
-}
-
-.troubleshooting-steps h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 16px 0;
-}
-
-/* ==================== 步骤卡片 ==================== */
-.step-card {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.step-header {
+.sidebar-summary {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  font-size: 12px;
+  opacity: 0.72;
 }
 
-.step-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.session-scroll {
   flex: 1;
-  min-width: 0;
 }
 
-.step-title-row h4 {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.step-description {
-  margin-bottom: 16px;
-}
-
-.step-description p {
-  font-size: 14px;
-  color: #475569;
-  line-height: 1.7;
-  margin: 0;
-}
-
-/* ==================== 媒体网格 ==================== */
-.step-media {
-  margin: 16px 0;
-}
-
-.step-media h5 {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1e293b;
-  margin: 0 0 12px 0;
-}
-
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.media-item {
-  border-radius: 8px;
-  overflow: hidden;
-  background: #f8fafc;
-}
-
-.media-image,
-.media-video {
+.session-card {
   width: 100%;
-  height: 150px;
-  object-fit: cover;
-  display: block;
-}
-
-.image-error {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 150px;
-  color: #94a3b8;
-  gap: 8px;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-/* ==================== 步骤详情元素 ==================== */
-.step-expected,
-.step-tools,
-.step-failed {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 12px;
-  background: #f8fafc;
-  border-radius: 8px;
-  margin-top: 12px;
+.session-card.active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(151, 220, 201, 0.4);
+}
+
+.session-card strong {
   font-size: 14px;
-  color: #475569;
 }
 
-.step-tools {
-  flex-wrap: wrap;
+.session-card span,
+.session-card small {
+  opacity: 0.78;
 }
 
-.tool-tag {
-  margin-left: 4px;
-  margin-top: 4px;
-}
-
-.step-safety {
-  margin-top: 12px;
-}
-
-.safety-list {
-  margin: 8px 0 0 0;
-  padding-left: 20px;
-  font-size: 13px;
-}
-
-.safety-list li {
-  margin-bottom: 4px;
-}
-
-/* ==================== 文本回复 ==================== */
-.text-response {
-  white-space: pre-wrap;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #1e293b;
-}
-
-/* ==================== 输入框区域 ==================== */
-.input-wrapper {
-  padding: 16px 24px;
-  background: white;
-  border-top: 1px solid #e2e8f0;
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
-}
-
-.input-wrap {
-  width: 80%;
-}
-
-
-.input-wrapper.input-center {
-  display: flex;
-  justify-content: center;
-  padding: 24px;
-}
-
-.input-wrapper.input-center :deep(.message-input) {
-  max-width: 800px;
+.new-session-btn {
   width: 100%;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  border-color: #d97706;
 }
 
-.input-wrapper.input-bottom :deep(.message-input) {
-  max-width: 900px;
+.conversation-shell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 16px 12px;
+  gap: 12px;
+}
+
+.shell-header,
+.empty-state,
+.input-dock {
+  max-width: 1340px;
   width: 100%;
   margin: 0 auto;
 }
 
-/* ==================== 过渡动画 ==================== */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s;
+.shell-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 4px 0;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
+.shell-header.compact {
+  gap: 12px;
 }
 
-/* ==================== 响应式设计 - 平板 ==================== */
-@media (max-width: 1024px) {
-  .sidebar {
-    width: 240px;
-  }
-  
-  .bubble {
-    max-width: 80%;
-  }
-  
-  .summary-logo {
-    width: 100px;
-    height: 100px;
-  }
-  
-  .summary-title {
-    font-size: 28px;
-  }
-  
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  }
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #0f766e;
+  text-transform: uppercase;
 }
 
-/* ==================== 响应式设计 - 移动端 ==================== */
-@media (max-width: 768px) {
-  /* 显示移动端菜单按钮 */
-  .mobile-menu-btn {
-    display: flex !important; /* 强制显示 */
-  }
-  .input-wrap {
-    width: 100%;
-  }
-  /* 侧边栏变为抽屉式 */
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 280px;
-    transform: translateX(-100%);
-    z-index: 1001;
-  }
-  
-  .sidebar:not(.collapsed) {
-    transform: translateX(0);
-  }
-  
-  /* 显示遮罩层 */
-  .sidebar-overlay {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    animation: fadeIn 0.3s;
-  }
-  
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  /* 主内容区域占满 */
-  .main {
-    width: 100%;
-  }
-  
-  /* 消息气泡调整 */
-  .bubble {
-    max-width: 85%;
-    padding: 12px 16px;
-  }
-  
-  .messages {
-    padding: 16px;
-  }
-  
-  /* 欢迎页调整 */
-  .summary {
-    padding: 16px;
-  }
-  
-  .summary-logo {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 16px;
-  }
-  
-  .summary-title {
-    font-size: 24px;
-  }
-  
-  .summary-subtitle {
-    font-size: 14px;
-  }
-  
-  /* 输入框调整 */
-  .input-wrapper {
-    padding: 12px 16px;
-  }
-  
-  .input-wrapper.input-center :deep(.message-input),
-  .input-wrapper.input-bottom :deep(.message-input) {
-    max-width: 100%;
-  }
-  
-  /* 步骤卡片调整 */
-  .step-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-  
-  .step-title-row {
-    width: 100%;
-  }
-  
-  .step-title-row h4 {
-    font-size: 14px;
-  }
-  
-  /* 媒体网格调整 */
-  .media-grid {
+.shell-header h1,
+.header-copy {
+  margin: 0;
+}
+
+.shell-header h1 {
+  font-size: 24px;
+  color: #14231f;
+}
+
+.header-copy {
+  margin-top: 4px;
+  color: #5b6b67;
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.header-side {
+  display: flex;
+  gap: 10px;
+}
+
+.header-pill {
+  min-width: 104px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(17, 94, 89, 0.1);
+}
+
+.header-pill span,
+.header-pill strong {
+  display: block;
+}
+
+.header-pill span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.header-pill strong {
+  margin-top: 6px;
+  color: #14231f;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(17, 94, 89, 0.08);
+}
+
+.empty-hero {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.hero-logo {
+  width: 100px;
+  height: 100px;
+  border-radius: 28px;
+}
+
+.empty-hero h2,
+.empty-hero p {
+  margin: 0;
+}
+
+.empty-hero p {
+  margin-top: 10px;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prompt-card {
+  padding: 18px;
+  border: 1px solid rgba(17, 94, 89, 0.08);
+  border-radius: 18px;
+  text-align: left;
+  background: #fcfdfc;
+  cursor: pointer;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.message-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.message-stack {
+  max-width: 1340px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 2px 0 12px;
+}
+
+.message-row {
+  display: flex;
+  gap: 14px;
+}
+
+.message-row.user {
+  justify-content: flex-end;
+}
+
+.assistant-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.assistant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.message-card {
+  width: min(100%, 1040px);
+  border-radius: 22px;
+  padding: 16px 18px;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.06);
+}
+
+.user-card {
+  background: linear-gradient(135deg, #115e59 0%, #0f766e 100%);
+  color: #f8fffd;
+}
+
+.assistant-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(17, 94, 89, 0.08);
+}
+
+
+.message-body,
+.plain-answer {
+  margin-top: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.guidance-alert {
+  margin-top: 14px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.summary-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: #f7faf9;
+}
+
+.summary-card.highlight {
+  background: #eef7f4;
+}
+
+.summary-card span,
+.summary-card strong {
+  display: block;
+}
+
+.summary-card span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.summary-card strong {
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+.content-section {
+  margin-top: 18px;
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-head h3,
+.section-head span {
+  margin: 0;
+}
+
+.section-head h3 {
+  font-size: 16px;
+}
+
+.section-head span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.step-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.step-card,
+.knowledge-card {
+  padding: 16px;
+  border-radius: 18px;
+  background: #fbfcfb;
+  border: 1px solid rgba(15, 118, 110, 0.08);
+}
+
+.step-head,
+.knowledge-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.step-card p,
+.knowledge-card p {
+  margin: 10px 0 0;
+  line-height: 1.7;
+  color: #334155;
+}
+
+.step-expected {
+  color: #0f766e;
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.media-item {
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.message-time {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+@media (max-width: 1080px) {
+  .chat-workbench {
     grid-template-columns: 1fr;
   }
-  
-  .media-image,
-  .media-video {
-    height: 200px;
+
+  .session-sidebar {
+    display: none;
   }
-  
-  /* 问题摘要调整 */
-  .problem-summary {
-    padding: 12px;
-  }
-  
-  .problem-summary h3 {
-    font-size: 15px;
-  }
-  
-  .problem-summary p {
-    font-size: 13px;
-  }
-  
-  /* 工具标签换行 */
-  .step-tools {
+
+  .shell-header {
     flex-direction: column;
-    align-items: flex-start;
   }
-}
 
-/* ==================== 响应式设计 - 小屏手机 ==================== */
-@media (max-width: 480px) {
-  .sidebar {
-    width: 260px;
+  .header-side,
+  .summary-grid,
+  .prompt-grid,
+  .media-grid,
+  .step-list {
+    grid-template-columns: 1fr;
+    display: grid;
   }
-  
-  .bubble {
-    max-width: 90%;
-    font-size: 14px;
-    padding: 10px 14px;
-  }
-  
-  .messages {
-    padding: 12px;
-  }
-  
-  .summary-logo {
-    width: 64px;
-    height: 64px;
-  }
-  
-  .summary-title {
-    font-size: 20px;
-  }
-  
-  .summary-subtitle {
-    font-size: 13px;
-  }
-  
-  .step-description p {
-    font-size: 13px;
-  }
-  
-  .media-image,
-  .media-video {
-    height: 180px;
-  }
-  
-  .input-wrapper {
-    padding: 10px 12px;
-  }
-}
 
-/* ==================== 横屏适配 ==================== */
-@media (max-height: 600px) and (orientation: landscape) {
-  .summary-logo {
-    width: 60px;
-    height: 60px;
-    margin-bottom: 12px;
-  }
-  
-  .summary-title {
-    font-size: 20px;
-    margin-bottom: 8px;
-  }
-  
-  .summary-subtitle {
-    font-size: 13px;
-  }
-  
-  .messages {
-    padding: 12px 16px;
-  }
-  
-  .bubble {
-    padding: 8px 12px;
-  }
-}
-
-/* ==================== 打印样式 ==================== */
-@media print {
-  .sidebar,
-  .input-wrapper,
-  .collapse-btn,
-  .el-checkbox {
-    display: none !important;
-  }
-  
-  .main {
-    width: 100%;
-  }
-  
-  .bubble {
-    max-width: 100%;
-    break-inside: avoid;
+  .empty-hero {
+    grid-template-columns: 1fr;
   }
 }
 </style>
