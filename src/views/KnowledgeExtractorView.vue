@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="extractor-page">
     <header class="hero">
       <div>
@@ -12,6 +12,8 @@
         <el-tag type="info">接口：/api/kb/extractor/*</el-tag>
         <el-tag v-if="preview.routing?.route_type" type="success">路由：{{ preview.routing.route_type }}</el-tag>
         <el-tag v-if="knowledgeIssues.length" type="warning">知识校验：{{ knowledgeIssues.length }}</el-tag>
+        <el-tag v-if="knowledgeReady" :type="knowledgeRiskTagType">重复风险：{{ knowledgeRiskLabel }}</el-tag>
+        <el-tag v-if="graphReady" :type="graphRiskTagType">图谱审核：{{ graphRiskLabel }}</el-tag>
       </div>
     </header>
 
@@ -133,20 +135,29 @@
               </div>
             </template>
 
-            <div v-if="!knowledgeReady" class="empty-box">尚未生成知识预览</div>
-            <template v-else>
-              <div class="stat-strip">
-                <span>embedding: {{ preview.qdrant_preview?.embedding?.success_count || 0 }}/{{ payloadCount }}</span>
-                <span>route: {{ preview.routing?.route_type || '-' }}</span>
-              </div>
-              <div v-if="knowledgeIssues.length" class="issue-box">
-                <div v-for="(item, idx) in knowledgeIssues" :key="idx">
-                  {{ item.type }} | {{ item.chunk_id || item.index }}
+              <div v-if="!knowledgeReady" class="empty-box">尚未生成知识预览</div>
+              <template v-else>
+                <div class="stat-strip">
+                  <span>embedding: {{ preview.qdrant_preview?.embedding?.success_count || 0 }}/{{ payloadCount }}</span>
+                  <span>route: {{ preview.routing?.route_type || '-' }}</span>
                 </div>
-              </div>
-              <pre>{{ pretty(preview.qdrant_preview?.vector_payloads) }}</pre>
-              <div v-if="knowledgeIngestResult" class="result-box">
-                <h3>知识入库结果</h3>
+                <div class="audit-overview">
+                  <div class="audit-overview-head">
+                    <div>
+                      <strong>入库前审核</strong>
+                      <span class="audit-overview-meta">高风险 {{ knowledgeReview.high.length }} / 中风险 {{ knowledgeReview.medium.length }} / 低风险 {{ knowledgeReview.low.length }}</span>
+                    </div>
+                    <el-button size="small" type="primary" plain @click="openKnowledgeAudit">查看审核面板</el-button>
+                  </div>
+                  <div v-if="knowledgeIssues.length" class="issue-box">
+                    <div v-for="(item, idx) in knowledgeIssues.slice(0, 6)" :key="idx">
+                      {{ item.type }} | {{ item.chunk_id || item.index }}
+                    </div>
+                  </div>
+                </div>
+                <pre>{{ pretty(preview.qdrant_preview?.vector_payloads) }}</pre>
+                <div v-if="knowledgeIngestResult" class="result-box">
+                  <h3>知识入库结果</h3>
                 <pre>{{ pretty(knowledgeIngestResult) }}</pre>
               </div>
             </template>
@@ -160,11 +171,25 @@
               </div>
             </template>
 
-            <div v-if="!graphReady" class="empty-box">尚未生成图谱预览</div>
-            <template v-else>
-              <div class="graph-preview-summary">
-                <div>Fault: {{ preview.neo4j_preview?.fault?.name }}</div>
-                <div>chunk_ids: {{ (preview.neo4j_preview?.fault?.chunk_ids || []).join(', ') || '-' }}</div>
+              <div v-if="!graphReady" class="empty-box">尚未生成图谱预览</div>
+              <template v-else>
+                <div class="audit-overview">
+                  <div class="audit-overview-head">
+                    <div>
+                      <strong>图谱审核</strong>
+                      <span class="audit-overview-meta">高风险 {{ graphReview.high.length }} / 中风险 {{ graphReview.medium.length }} / 低风险 {{ graphReview.low.length }}</span>
+                    </div>
+                    <el-button size="small" type="warning" plain @click="openGraphAudit">查看图谱审核</el-button>
+                  </div>
+                  <div v-if="graphAuditIssues.length" class="issue-box">
+                    <div v-for="(item, idx) in graphAuditIssues.slice(0, 6)" :key="`graph-${idx}`">
+                      {{ item.type }} | {{ item.label || item.detail || item.index }}
+                    </div>
+                  </div>
+                </div>
+                <div class="graph-preview-summary">
+                  <div>Fault: {{ preview.neo4j_preview?.fault?.name }}</div>
+                  <div>chunk_ids: {{ (preview.neo4j_preview?.fault?.chunk_ids || []).join(', ') || '-' }}</div>
               </div>
               <div class="graph-legend">
                 <span><i class="legend-dot legend-root"></i> 根节点</span>
@@ -252,14 +277,95 @@
             </template>
           </el-card>
         </div>
-      </div>
-    </section>
-  </div>
+        </div>
+      </section>
+
+    <el-drawer v-model="reviewDrawer.visible" :title="reviewDrawer.mode === 'knowledge' ? '知识入库审核' : '图谱入库审核'" size="42%">
+      <template v-if="reviewDrawer.mode === 'knowledge'">
+        <div class="review-panel">
+          <div class="review-summary">
+            <el-tag :type="knowledgeRiskTagType">{{ knowledgeRiskLabel }}</el-tag>
+            <span>本次预览共 {{ payloadCount }} 条知识块，重复 chunk_id {{ selfCheck?.summary?.duplicate_chunk_id_count || 0 }} 条。</span>
+          </div>
+          <div class="review-section">
+            <div class="review-section-title">审核策略</div>
+            <el-radio-group v-model="knowledgeReviewDecision">
+              <el-radio label="continue_all">全部继续写入</el-radio>
+              <el-radio label="skip_duplicates">跳过疑似重复项</el-radio>
+              <el-radio label="only_low_risk">仅写入低风险新增项</el-radio>
+              <el-radio label="back_to_edit">返回修改原始文本后重新生成</el-radio>
+            </el-radio-group>
+          </div>
+          <div class="review-section">
+            <div class="review-section-title">高风险</div>
+            <div v-if="!knowledgeReview.high.length" class="empty-mini">无</div>
+            <div v-for="(item, idx) in knowledgeReview.high" :key="`kh-${idx}`" class="review-item review-item-high">
+              <div>{{ item.type }} | {{ item.chunk_id || item.index }}</div>
+              <div v-if="item.existing_point">相似项：{{ item.existing_point.chunk_id }} / score={{ Number(item.existing_point.score || 0).toFixed(3) }}</div>
+            </div>
+          </div>
+          <div class="review-section">
+            <div class="review-section-title">中低风险</div>
+            <div v-if="!knowledgeReview.medium.length && !knowledgeReview.low.length" class="empty-mini">无</div>
+            <div v-for="(item, idx) in [...knowledgeReview.medium, ...knowledgeReview.low]" :key="`km-${idx}`" class="review-item review-item-medium">
+              <div>{{ item.type }} | {{ item.chunk_id || item.index }}</div>
+              <div v-if="item.existing_point">相似项：{{ item.existing_point.chunk_id }} / score={{ Number(item.existing_point.score || 0).toFixed(3) }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <div class="review-panel">
+          <div class="review-summary">
+            <el-tag :type="graphRiskTagType">{{ graphRiskLabel }}</el-tag>
+            <span>预览包含 {{ graphNodeCount }} 个节点与 {{ graphRelCount }} 条关系。</span>
+          </div>
+          <div class="review-section">
+            <div class="review-section-title">高风险</div>
+            <div v-if="!graphReview.high.length" class="empty-mini">无</div>
+            <div v-for="(item, idx) in graphReview.high" :key="`gh-${idx}`" class="review-item review-item-high">
+              <div>{{ item.type }}</div>
+              <div>{{ item.label || item.detail }}</div>
+            </div>
+          </div>
+          <div class="review-section">
+            <div class="review-section-title">中低风险</div>
+            <div v-if="!graphReview.medium.length && !graphReview.low.length" class="empty-mini">无</div>
+            <div v-for="(item, idx) in [...graphReview.medium, ...graphReview.low]" :key="`gm-${idx}`" class="review-item review-item-medium">
+              <div>{{ item.type }}</div>
+              <div>{{ item.label || item.detail }}</div>
+            </div>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <div class="review-footer">
+          <el-button @click="reviewDrawer.visible = false">取消</el-button>
+          <el-button
+            v-if="reviewDrawer.mode === 'knowledge'"
+            type="primary"
+            :loading="loadingKnowledgeIngest"
+            @click="performKnowledgeIngest"
+          >
+            确认知识入库
+          </el-button>
+          <el-button
+            v-else
+            type="danger"
+            :loading="loadingGraphIngest"
+            @click="performGraphIngest"
+          >
+            确认图谱入库
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
+    </div>
 </template>
 
 <script setup>
 import { computed, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import http from '@/api/http'
 
 const PRESETS = [
@@ -304,6 +410,11 @@ const preview = reactive({
 const selfCheck = ref(null)
 const knowledgeIngestResult = ref(null)
 const graphIngestResult = ref(null)
+const knowledgeReviewDecision = ref('skip_duplicates')
+const reviewDrawer = reactive({
+  visible: false,
+  mode: 'knowledge'
+})
 
 const currentPreset = computed(() => PRESETS[form.presetIndex] || PRESETS[1])
 const effectiveParams = computed(() => ({ ...currentPreset.value }))
@@ -313,7 +424,20 @@ const payloadCount = computed(() => (preview.qdrant_preview?.vector_payloads || 
 const graphNodeCount = computed(() => (preview.neo4j_preview?.nodes || []).length)
 const graphRelCount = computed(() => (preview.neo4j_preview?.relationships || []).length)
 const knowledgeIssues = computed(() => selfCheck.value?.issues || [])
+const knowledgeReview = computed(() => selfCheck.value?.review || { high: [], medium: [], low: [], ignorable: [] })
 const previewGraphWidth = 980
+const knowledgeRiskLabel = computed(() => {
+  if (knowledgeReview.value.high.length) return '高风险'
+  if (knowledgeReview.value.medium.length) return '中风险'
+  if (knowledgeReview.value.low.length) return '低风险'
+  return '可直接入库'
+})
+const knowledgeRiskTagType = computed(() => {
+  if (knowledgeReview.value.high.length) return 'danger'
+  if (knowledgeReview.value.medium.length) return 'warning'
+  if (knowledgeReview.value.low.length) return 'info'
+  return 'success'
+})
 
 const previewGraphModel = computed(() => {
   const rawNodes = Array.isArray(preview.neo4j_preview?.nodes) ? preview.neo4j_preview.nodes : []
@@ -502,6 +626,83 @@ const previewEntryStepLabels = computed(() => {
 
 const previewFlowRelCount = computed(() => {
   return previewGraphModel.value.relationships.filter((item) => ['NEXT_STEP', 'IF_SUCCESS', 'IF_FAILED'].includes(item.type)).length
+})
+
+const graphAuditIssues = computed(() => {
+  const remoteIssues = preview.neo4j_preview?.graph_review?.issues
+  if (Array.isArray(remoteIssues) && remoteIssues.length) return remoteIssues
+  const issues = []
+  const rawNodes = Array.isArray(preview.neo4j_preview?.nodes) ? preview.neo4j_preview.nodes : []
+  const rawRelationships = Array.isArray(preview.neo4j_preview?.relationships) ? preview.neo4j_preview.relationships : []
+  const nodeNameMap = {}
+  rawNodes.forEach((node) => {
+    const label = String(node?.label || 'Unknown')
+    const text = String(node?.name || node?.action || '').trim().toLowerCase()
+    if (!text) return
+    const key = `${label}:${text}`
+    nodeNameMap[key] = (nodeNameMap[key] || 0) + 1
+  })
+  Object.entries(nodeNameMap).forEach(([key, count]) => {
+    if (count > 1) {
+      issues.push({
+        type: 'graph_duplicate_node_name',
+        level: 'warning',
+        label: `${key} 重复 ${count} 次`
+      })
+    }
+  })
+
+  const stepActionMap = {}
+  rawNodes.filter((node) => String(node?.label || '') === 'FaultStep').forEach((node) => {
+    const text = String(node?.action || node?.name || '').trim().toLowerCase()
+    if (!text) return
+    stepActionMap[text] = (stepActionMap[text] || 0) + 1
+  })
+  Object.entries(stepActionMap).forEach(([key, count]) => {
+    if (count > 1) {
+      issues.push({
+        type: 'graph_step_overlap',
+        level: 'warning',
+        label: `${key} 重复 ${count} 次`
+      })
+    }
+  })
+
+  const entrySteps = rawRelationships.filter((item) => String(item?.type || item?.label || '') === 'HAS_STEP')
+  if (entrySteps.length > 1) {
+    issues.push({
+      type: 'graph_entry_conflict',
+      level: 'warning',
+      detail: `检测到 ${entrySteps.length} 个入口步骤，请确认是否为同一故障流程`
+    })
+  }
+  return issues
+})
+
+const graphReview = computed(() => {
+  const remoteReview = preview.neo4j_preview?.graph_review?.review
+  if (remoteReview) return remoteReview
+  const review = { high: [], medium: [], low: [], ignorable: [] }
+  graphAuditIssues.value.forEach((item) => {
+    if (item.type === 'graph_duplicate_node_name') review.high.push(item)
+    else if (item.type === 'graph_step_overlap' || item.type === 'graph_entry_conflict') review.medium.push(item)
+    else review.low.push(item)
+  })
+  return review
+})
+
+const graphRiskLabel = computed(() => {
+  if (graphReview.value.high.length) return '高风险'
+  if (graphReview.value.medium.length) return '中风险'
+  if (graphReview.value.low.length) return '低风险'
+  return '可直接入库'
+})
+
+const graphRiskTagType = computed(() => {
+  if (graphReview.value.high.length) return 'danger'
+  if (graphReview.value.medium.length) return 'warning'
+  if (graphReview.value.low.length) return 'info'
+  return 'success'
 })
 
 const graphLayout = computed(() => {
@@ -693,6 +894,73 @@ async function runSelfCheckQuietly() {
   selfCheck.value = data
 }
 
+async function ensureKnowledgeAudit() {
+  if (!knowledgeReady.value) {
+    ElMessage.warning('请先生成知识预览')
+    return false
+  }
+  await runSelfCheckQuietly()
+  return true
+}
+
+function openKnowledgeAudit() {
+  if (!knowledgeReady.value) {
+    ElMessage.warning('请先生成知识预览')
+    return
+  }
+  ensureKnowledgeAudit().then((ok) => {
+    if (!ok) return
+    reviewDrawer.mode = 'knowledge'
+    reviewDrawer.visible = true
+  })
+}
+
+function openGraphAudit() {
+  if (!graphReady.value) {
+    ElMessage.warning('请先生成图谱预览')
+    return
+  }
+  reviewDrawer.mode = 'graph'
+  reviewDrawer.visible = true
+}
+
+function buildKnowledgeIngestPlan() {
+  const payloads = preview.qdrant_preview?.vector_payloads || []
+  const highRiskIndexes = new Set(knowledgeReview.value.high.map((item) => item.index).filter((item) => item >= 0))
+  const mediumRiskIndexes = new Set(knowledgeReview.value.medium.map((item) => item.index).filter((item) => item >= 0))
+  const duplicateIndexes = new Set(
+    [...knowledgeReview.value.high, ...knowledgeReview.value.medium]
+      .filter((item) => ['chunk_id_already_exists', 'high_similarity_existing', 'similar_topic_candidate'].includes(item.type))
+      .map((item) => item.index)
+      .filter((item) => item >= 0)
+  )
+
+  if (knowledgeReviewDecision.value === 'only_low_risk') {
+    return {
+      vector_payloads: payloads.filter((_, idx) => !highRiskIndexes.has(idx) && !mediumRiskIndexes.has(idx)),
+      skip_duplicate_chunk_ids: false,
+      skip_high_similarity_indexes: [],
+      allow_conflict_write: false
+    }
+  }
+
+  if (knowledgeReviewDecision.value === 'skip_duplicates') {
+    return {
+      vector_payloads: payloads,
+      skip_duplicate_chunk_ids: true,
+      skip_high_similarity_indexes: [...duplicateIndexes],
+      allow_conflict_write: false
+    }
+  }
+
+  return {
+    vector_payloads: payloads,
+    skip_duplicate_chunk_ids: false,
+    skip_high_similarity_indexes: [],
+    allow_conflict_write: true
+  }
+}
+
 async function generateKnowledge() {
   if (!form.text.trim()) {
     ElMessage.warning('请先输入文本')
@@ -719,26 +987,35 @@ async function ingestKnowledge() {
     ElMessage.warning('没有可入库的知识块')
     return
   }
-  try {
-    await ElMessageBox.confirm(
-      `将向集合 ${form.collectionName} 写入 ${payloads.length} 条知识，是否继续？`,
-      '确认知识入库',
-      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
-    )
-  } catch {
+  openKnowledgeAudit()
+}
+
+async function performKnowledgeIngest() {
+  if (knowledgeReviewDecision.value === 'back_to_edit') {
+    reviewDrawer.visible = false
+    ElMessage.info('已返回编辑状态，请修改原始文本后重新生成')
     return
   }
 
+  const ingestPlan = buildKnowledgeIngestPlan()
+  if (!ingestPlan.vector_payloads.length) {
+    ElMessage.warning('当前策略下没有可入库的低风险新增项')
+    return
+  }
   loadingKnowledgeIngest.value = true
   try {
     const { data } = await http.post('/kb/extractor/batch-ingest', {
       collection_name: form.collectionName,
-      vector_payloads: payloads,
-      dry_run: false
+      vector_payloads: ingestPlan.vector_payloads,
+      dry_run: false,
+      skip_duplicate_chunk_ids: ingestPlan.skip_duplicate_chunk_ids,
+      skip_high_similarity_indexes: ingestPlan.skip_high_similarity_indexes,
+      allow_conflict_write: ingestPlan.allow_conflict_write
     })
     knowledgeIngestResult.value = data
+    reviewDrawer.visible = false
     if (data.ok) ElMessage.success(`知识入库完成：${data.summary?.ready_or_inserted || 0} 条`)
-    else ElMessage.warning(`知识入库部分失败：${data.summary?.failed || 0} 条`)
+    else ElMessage.warning(`知识入库部分失败：${data.summary?.failed || 0} 条，跳过 ${data.summary?.skipped || 0} 条`)
   } catch (err) {
     ElMessage.error(`知识入库失败：${err?.response?.data?.detail || err.message}`)
   } finally {
@@ -769,23 +1046,23 @@ async function ingestGraph() {
     ElMessage.warning('没有可入库的图谱结构')
     return
   }
-  try {
-    await ElMessageBox.confirm(
-      `将向 Neo4j 写入 ${graphNodeCount.value} 个节点与 ${graphRelCount.value} 条关系，是否继续？`,
-      '确认图谱入库',
-      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
+  openGraphAudit()
+}
 
+async function performGraphIngest() {
   loadingGraphIngest.value = true
   try {
     const { data } = await http.post('/kb/extractor/graph-ingest', {
       preview: preview.neo4j_preview,
-      dry_run: false
+      dry_run: false,
+      allow_conflict_write: false
     })
     graphIngestResult.value = data
+    if (data.blocked) {
+      ElMessage.warning(`图谱入库已被审核拦截：高风险 ${data.graph_review?.summary?.high_risk_count || 0} 项`)
+      return
+    }
+    reviewDrawer.visible = false
     if (data.ok) ElMessage.success(`图谱入库完成：执行 ${data.summary?.executed || 0} 条语句`)
     else ElMessage.warning(`图谱入库部分失败：${data.summary?.failed || 0} 条`)
   } catch (err) {
@@ -1113,6 +1390,88 @@ async function ingestGraph() {
   color: #476684;
 }
 
+.audit-overview {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f8fbff;
+  border: 1px solid #dbe7f5;
+}
+
+.audit-overview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.audit-overview-meta {
+  margin-left: 10px;
+  font-size: 12px;
+  color: #587089;
+}
+
+.review-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.review-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f5f9ff;
+  border: 1px solid #dbe7f5;
+  color: #476684;
+}
+
+.review-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.review-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #18324d;
+}
+
+.review-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.review-item-high {
+  background: #fff3f1;
+  border: 1px solid #f3c7c0;
+  color: #9f2f21;
+}
+
+.review-item-medium {
+  background: #fff8ec;
+  border: 1px solid #f1d599;
+  color: #8b5b00;
+}
+
+.empty-mini {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f9fc;
+  color: #6a7f95;
+}
+
+.review-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .zoom-controls {
   display: flex;
   gap: 6px;
@@ -1136,3 +1495,4 @@ async function ingestGraph() {
   }
 }
 </style>
+

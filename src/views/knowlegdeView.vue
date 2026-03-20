@@ -93,6 +93,25 @@
         </el-button>
       </div>
 
+      <div class="list-status-bar">
+        <div class="list-status-left">
+          <el-tag :type="isSearchMode ? 'warning' : 'info'" effect="light">
+            {{ isSearchMode ? '搜索结果浏览' : '普通列表浏览' }}
+          </el-tag>
+          <span class="list-status-text">
+            {{ statusSummary }}
+          </span>
+        </div>
+        <el-button
+          v-if="isSearchMode"
+          text
+          type="primary"
+          @click="resetSearch"
+        >
+          返回普通列表
+        </el-button>
+      </div>
+
       <el-table
         :data="chunks"
         class="mt-2"
@@ -157,18 +176,18 @@
 
       <div class="pagination-container">
         <div class="pagination-info">
-          共 {{ total }} 条记录，当前第 {{ currentPage }} 页
+          {{ paginationSummary }}
         </div>
         <div class="pagination-controls">
           <el-button 
-            :disabled="currentPage === 1 || loading" 
+            :disabled="isSearchMode || currentPage === 1 || loading" 
             size="small"
             @click="goToPage(1)"
           >
             首页
           </el-button>
           <el-button 
-            :disabled="currentPage === 1 || loading" 
+            :disabled="isSearchMode || currentPage === 1 || loading" 
             size="small"
             @click="goToPrevPage"
           >
@@ -176,14 +195,14 @@
           </el-button>
           <span class="page-indicator">{{ currentPage }} / {{ totalPages || '?' }}</span>
           <el-button 
-            :disabled="!hasNextPage || loading" 
+            :disabled="isSearchMode || currentPage >= totalPages || loading || !totalPages" 
             size="small"
             @click="goToNextPage"
           >
             下一页
           </el-button>
           <el-button 
-            :disabled="currentPage === totalPages || loading || !totalPages" 
+            :disabled="isSearchMode || currentPage >= totalPages || loading || !totalPages" 
             size="small"
             @click="goToLastPage"
           >
@@ -337,6 +356,7 @@ const router = useRouter();
 
 // 状态
 const searchQuery = ref('');
+const activeSearchQuery = ref('');
 const chunks = ref([]);
 const currentPage = ref(1);
 const pageSize = ref(10);
@@ -345,15 +365,23 @@ const loading = ref(false);
 const dialogVisible = ref(false);
 const dialogTitle = ref('新增知识点');
 
-// 游标管理 - 使用栈结构存储游标历史
-const cursorStack = ref([null]); // 第一页的游标是 null
-const nextCursor = ref(null); // 当前页的下一页游标
-const hasNextPage = ref(true); // 是否有下一页
-
 // 计算总页数
 const totalPages = computed(() => {
   if (!total.value || !pageSize.value) return 0;
   return Math.ceil(total.value / pageSize.value);
+});
+const isSearchMode = computed(() => !!activeSearchQuery.value);
+const paginationSummary = computed(() => {
+  if (isSearchMode.value) {
+    return `搜索模式下共 ${total.value} 条结果，当前展示第 1 页`;
+  }
+  return `共 ${total.value} 条记录，当前第 ${currentPage.value} 页 / ${totalPages.value || 1} 页`;
+});
+const statusSummary = computed(() => {
+  if (isSearchMode.value) {
+    return `关键词“${activeSearchQuery.value}”共命中 ${total.value} 条结果，可点击“返回普通列表”恢复分页浏览。`;
+  }
+  return `当前按页码稳定翻页，每页 ${pageSize.value} 条。`;
 });
 
 const form = reactive({
@@ -397,72 +425,33 @@ const fetchOptions = async () => {
   }
 };
 
-// 获取总数
-const fetchTotalCount = async () => {
-  try {
-    const response = await http.get('/kb/collections/final_chunk_knowledge_v1.1/count');
-    total.value = response.data.count;
-  } catch (error) {
-    console.warn('无法获取总数');
+const normalizeChunkRows = (points = []) => points.map(item => ({
+  ...item,
+  payload: {
+    ...item.payload,
+    tags: Array.isArray(item.payload?.tags) ? item.payload.tags : [],
   }
-};
+}));
 
-// 获取知识点列表 - 修复版
-const fetchChunks = async (cursor = null, pageNum = null) => {
+const fetchChunks = async (pageNum = currentPage.value) => {
   loading.value = true;
   try {
-    // 构造请求参数
     const params = {
       limit: pageSize.value,
-      search: searchQuery.value || undefined
+      page: pageNum,
     };
-
-    // 优先级判断：如果传入了pageNum，说明是跳转模式（首页、末页或重置）
-    if (pageNum !== null) {
-      params.page = pageNum;
-    } 
-    // 否则如果传入了 cursor，说明是基于游标的顺序翻页（上一页、下一页）
-    else if (cursor !== null) {
-      params.offset = cursor;
-    }
-
-    console.log('请求参数:', params);
-
     const response = await http.get(`/kb/collections/final_chunk_knowledge_v1.1/points`, { params });
     const resData = response.data;
-
-    // 1. 更新表格数据
-    if (resData.points && Array.isArray(resData.points)) {
-      chunks.value = resData.points.map(item => ({
-        ...item,
-        payload: {
-          ...item.payload,
-          tags: Array.isArray(item.payload?.tags) ? item.payload.tags : [],
-        }
-      }));
-    } else {
-      chunks.value = [];
+    total.value = Number(resData.total_count || 0);
+    const safeTotalPages = Math.max(1, Math.ceil(total.value / pageSize.value) || 1);
+    const targetPage = Math.min(Math.max(1, pageNum), safeTotalPages);
+    if (targetPage !== pageNum) {
+      currentPage.value = targetPage;
+      await fetchChunks(targetPage);
+      return;
     }
-
-    // 2. 更新总数
-    if (resData.total_count !== undefined) {
-      total.value = resData.total_count;
-    }
-
-    // 3. 更新游标状态
-    nextCursor.value = resData.next_offset;
-    hasNextPage.value = !!resData.next_offset && chunks.value.length === pageSize.value;
-
-    // 4. 重要：如果是页码跳转模式，需要重置游标栈
-    if (pageNum !== null) {
-      currentPage.value = pageNum;
-      cursorStack.value = [null]; // 重置栈，第一页永远是 null
-      // 如果跳转的是非第一页，且有后续游标，可以把当前结果的逻辑接入
-      if (pageNum > 1 && resData.next_offset) {
-          // 这里不做复杂处理，保持简单：跳转后重新建立游标链
-      }
-    }
-
+    currentPage.value = targetPage;
+    chunks.value = normalizeChunkRows(resData.points || []);
   } catch (error) {
     console.error('加载数据失败:', error);
     ElMessage.error('获取数据失败');
@@ -473,80 +462,58 @@ const fetchChunks = async (cursor = null, pageNum = null) => {
 
 // 首页跳转
 const goToPage = async (page) => {
-  if (page === 1) {
-    await fetchChunks(null, 1); // 传入 pageNum = 1
-  }
+  if (isSearchMode.value || loading.value) return;
+  if (page < 1 || page > totalPages.value || page === currentPage.value) return;
+  await fetchChunks(page);
 };
 
 // 末页跳转
 const goToLastPage = async () => {
-  if (loading.value || !totalPages.value) return;
+  if (isSearchMode.value || loading.value || !totalPages.value) return;
   const last = totalPages.value;
   if (currentPage.value === last) return;
-  
-  await fetchChunks(null, last); // 传入 pageNum = last
+  await fetchChunks(last);
 };
 
-// 下一页 (基于游标)
 const goToNextPage = async () => {
-  if (!hasNextPage.value || loading.value || !nextCursor.value) return;
-  
-  const currentCursor = nextCursor.value;
-  cursorStack.value.push(currentCursor);
-  currentPage.value++;
-  await fetchChunks(currentCursor, null); // 传 cursor，不传 pageNum
+  if (isSearchMode.value || loading.value || currentPage.value >= totalPages.value) return;
+  await fetchChunks(currentPage.value + 1);
 };
 
-// 上一页 (基于栈)
 const goToPrevPage = async () => {
-  if (currentPage.value <= 1 || loading.value) return;
-
-  if (cursorStack.value.length > 1) {
-    cursorStack.value.pop(); // 弹出当前页游标
-    currentPage.value--;
-    const prevCursor = cursorStack.value[cursorStack.value.length - 1];
-    await fetchChunks(prevCursor, null);
-  } else {
-    // 兜底方案：如果栈空了（比如刚跳转完末页），使用页码向前推
-    await fetchChunks(null, currentPage.value - 1);
-  }
+  if (isSearchMode.value || currentPage.value <= 1 || loading.value) return;
+  await fetchChunks(currentPage.value - 1);
 };
 
 
 // 处理每页条数变化
 const handlePageSizeChange = async () => {
-  // 重置到第一页
   currentPage.value = 1;
-  cursorStack.value = [null];
-  await fetchChunks(null);
-};
-
-// 搜索知识点
-const searchChunks = async () => {
-  currentPage.value = 1;
-  cursorStack.value = [null];
-  
-  if (!searchQuery.value.trim()) {
-    await fetchChunks(null);
+  if (isSearchMode.value) {
+    await searchChunks();
     return;
   }
+  await fetchChunks(1);
+};
+
+const searchChunks = async () => {
+  const keyword = searchQuery.value.trim();
+  if (!keyword) {
+    await resetSearch();
+    return;
+  }
+  currentPage.value = 1;
+  activeSearchQuery.value = keyword;
   
   loading.value = true;
   try {
     const response = await http.post(`/kb/collections/final_chunk_knowledge_v1.1/search`, {
-      query: searchQuery.value,
+      query: keyword,
       limit: pageSize.value,
       score_threshold: 0.5,
     });
-
-    chunks.value = (response.data?.results || []).map(item => ({
-      ...item,
-      payload: {
-        ...item.payload,
-      },
-    }));
+    chunks.value = normalizeChunkRows(response.data?.results || []);
     total.value = response.data?.count || 0;
-    hasNextPage.value = false; // 搜索结果不支持翻页
   } catch (error) {
     ElMessage.error('搜索失败');
     console.error(error);
@@ -558,10 +525,17 @@ const searchChunks = async () => {
 // 重置搜索
 const resetSearch = async () => {
   searchQuery.value = '';
+  activeSearchQuery.value = '';
   currentPage.value = 1;
-  cursorStack.value = [null];
-  await fetchTotalCount();
-  await fetchChunks(null);
+  await fetchChunks(1);
+};
+
+const refreshCurrentView = async () => {
+  if (isSearchMode.value) {
+    await searchChunks();
+    return;
+  }
+  await fetchChunks(currentPage.value);
 };
 
 // 显示新增对话框
@@ -713,7 +687,7 @@ Chunk ID: ${chunk_id}
     }
 
     dialogVisible.value = false;
-    await fetchChunks(cursorStack.value[cursorStack.value.length - 1]);
+    await refreshCurrentView();
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error(form.id ? '更新失败' : '创建失败');
@@ -735,7 +709,7 @@ const deleteChunk = (id) => {
     try {
       await http.delete(`/kb/collections/final_chunk_knowledge_v1.1/points/${id}`);
       ElMessage.success('删除成功');
-      await fetchChunks(cursorStack.value[cursorStack.value.length - 1]);
+      await refreshCurrentView();
     } catch (error) {
       ElMessage.error('删除失败');
       console.error(error);
@@ -782,8 +756,9 @@ const importData = async (options) => {
     });
     ElMessage.success(`导入成功，导入 ${response.data.imported_count} 条数据`);
     currentPage.value = 1;
-    cursorStack.value = [null];
-    await fetchChunks(null);
+    activeSearchQuery.value = '';
+    searchQuery.value = '';
+    await fetchChunks(1);
   } catch (error) {
     ElMessage.error('导入失败');
     console.error(error);
@@ -816,8 +791,7 @@ const exportData = async () => {
 // 初始化
 onMounted(async () => {
   await fetchOptions();
-  await fetchTotalCount();
-  await fetchChunks(null);
+  await fetchChunks(1);
 });
 </script>
 
@@ -863,7 +837,30 @@ onMounted(async () => {
   margin-top: 24px;
 }
 
-/* 改进的分页样式 */
+.list-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: #f7f9fc;
+  border: 1px solid #e4ebf5;
+  border-radius: 10px;
+}
+
+.list-status-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.list-status-text {
+  font-size: 13px;
+  color: #5d6b7c;
+}
+
 .pagination-container {
   display: flex;
   justify-content: space-between;
