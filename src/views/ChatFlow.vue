@@ -127,141 +127,11 @@
           <div class="flow-shell-copy">
             <p class="flow-eyebrow">Flow 工作台</p>
             <h1>图谱诊断与分支推进</h1>
-            <p>保留流程推进和设备上下文，但把主要空间留给消息与步骤卡。</p>
-          </div>
-          <div class="flow-header-metrics">
-            <div class="flow-metric-card">
-              <span>当前接口</span>
-              <strong>{{ apiLabel }}</strong>
-            </div>
-            <div class="flow-metric-card">
-              <span>当前流程</span>
-              <strong>{{ currentFlowHeadline }}</strong>
-            </div>
-            <div class="flow-metric-card">
-              <span>步骤数</span>
-              <strong>{{ flowStepCount }}</strong>
-            </div>
+            <p class="flow-header-copy">围绕当前故障流程推进判断与操作，把主要空间留给消息和步骤卡片。</p>
           </div>
         </header>
 
-        <!-- 设备状态区域 -->
-        <div
-          class="device-status-bar"
-          :class="{ expanded: deviceStatusExpanded }"
-        >
-          <div
-            class="status-compact"
-            @click="deviceStatusExpanded = !deviceStatusExpanded"
-          >
-            <div class="compact-left">
-              <el-select 
-                v-model="currentDevice" 
-                placeholder="选择设备" 
-                size="small"
-                class="device-selector"
-                @change="handleDeviceChange"
-                @click.stop
-              >
-                <el-option
-                  label="拉丝机101"
-                  value="deviceA"
-                />
-                <el-option
-                  label="拉丝机102"
-                  value="deviceB"
-                />
-              </el-select>
-              
-              <div class="status-indicator">
-                <span
-                  class="status-dot"
-                  :class="deviceStatus"
-                />
-                <span class="status-text">{{ deviceStatusText }}</span>
-              </div>
-            </div>
 
-            <el-icon
-              class="expand-icon"
-              :class="{ rotated: deviceStatusExpanded }"
-            >
-              <ArrowDown />
-            </el-icon>
-          </div>
-
-          <!-- 展开内容 -->
-          <transition name="expand">
-            <div
-              v-if="deviceStatusExpanded"
-              class="status-expanded"
-            >
-              <div class="status-grid">
-                <div class="status-item">
-                  <el-icon><Odometer /></el-icon>
-                  <span>开机率: 95%</span>
-                </div>
-                <div class="status-item">
-                  <el-icon><Clock /></el-icon>
-                  <span>运行: 120h</span>
-                </div>
-                <div class="status-item">
-                  <el-icon><Tools /></el-icon>
-                  <span>维护: 正常</span>
-                </div>
-              </div>
-
-              <div class="fault-info">
-                <div
-                  v-if="hasFault"
-                  class="fault-alert"
-                >
-                  <el-alert
-                    type="warning"
-                    :closable="false"
-                  >
-                    <template #title>
-                      <div class="fault-title">
-                        ⚠️ 检测到故障
-                      </div>
-                    </template>
-                    <div class="fault-details">
-                      <div
-                        v-for="(fault, idx) in faultList"
-                        :key="idx"
-                        class="fault-item"
-                      >
-                        <span class="fault-code">{{ fault.code }}</span>
-                        <span class="fault-desc">{{ fault.description }}</span>
-                      </div>
-                    </div>
-                  </el-alert>
-                </div>
-                <div
-                  v-else
-                  class="no-fault"
-                >
-                  <el-icon
-                    color="#67c23a"
-                    size="20"
-                  >
-                    <CircleCheck />
-                  </el-icon>
-                  <span>运行正常</span>
-                </div>
-              </div>
-
-              <el-button
-                type="text"
-                size="small"
-                @click.stop="clearAll"
-              >
-                <el-icon><Delete /></el-icon>
-                清空对话
-              </el-button>
-            </div>
-          </transition>
-        </div>
 
         <!-- 聊天消息区域 -->
         <div
@@ -610,7 +480,7 @@
                           class="rk-item"
                         >
                           <div class="rk-head">
-                            <strong>{{ rk.chunk_id }}</strong>
+                            <strong>{{ getKnowledgeDisplayTitle(rk, ridx, '参考项') }}</strong>
                             <el-tag
                               size="small"
                               effect="plain"
@@ -619,7 +489,7 @@
                             </el-tag>
                           </div>
                           <div class="rk-content">
-                            {{ rk.content }}
+                            {{ formatKnowledgeContent(rk.content) }}
                           </div>
                           <img
                             v-if="rk.image_path"
@@ -630,6 +500,105 @@
                         </div>
                       </el-collapse-item>
                     </el-collapse>
+                  </div>
+
+                  <div
+                    v-else-if="msg.results?.length"
+                    class="related-knowledge compact-results"
+                  >
+                    <h4>Top 向量命中</h4>
+                    <template v-if="hasOverviewGuide(msg.results)">
+                      <div class="rk-card overview-card">
+                        <div class="rk-header">
+                          <strong>{{ getKnowledgeDisplayTitle(msg.results[0], 0, '结果') }}</strong>
+                          <span>{{ formatScore(msg.results[0]?.score) }}</span>
+                        </div>
+                        <div class="rk-content">
+                          {{ formatKnowledgeContent(msg.results[0]?.content) }}
+                        </div>
+                      </div>
+                      <div
+                        v-if="getOverviewChildren(msg.results).length"
+                        class="knowledge-link-row"
+                      >
+                        <button
+                          v-for="(rk, ridx) in getOverviewChildren(msg.results)"
+                          :key="`${rk.chunk_id || 'child'}-${ridx}`"
+                          type="button"
+                          class="knowledge-link-btn"
+                          :class="{ active: getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id === rk.chunk_id }"
+                          @click="setSelectedKnowledge(`${idx}-results`, rk.chunk_id)"
+                        >
+                          {{ getKnowledgeDisplayTitle(rk, ridx, '细节') }}
+                        </button>
+                      </div>
+                      <div
+                        v-if="getSelectedKnowledge(`${idx}-results`, msg.results)"
+                        class="rk-card detail-card"
+                      >
+                        <div class="rk-header">
+                          <strong>{{ getKnowledgeDisplayTitle(getSelectedKnowledge(`${idx}-results`, msg.results), 0, '细节') }}</strong>
+                          <span>{{ formatScore(getSelectedKnowledge(`${idx}-results`, msg.results)?.score) }}</span>
+                        </div>
+                        <div class="rk-content">
+                          {{ formatKnowledgeContent(getSelectedKnowledge(`${idx}-results`, msg.results)?.content) }}
+                        </div>
+                        <div
+                          v-if="getKnowledgeChildren(getSelectedKnowledge(`${idx}-results`, msg.results), msg.results).length"
+                          class="knowledge-link-row nested"
+                        >
+                          <button
+                            v-for="(item, nestedIndex) in getKnowledgeChildren(getSelectedKnowledge(`${idx}-results`, msg.results), msg.results)"
+                            :key="`${item.chunk_id || 'nested'}-${nestedIndex}`"
+                            type="button"
+                            class="knowledge-link-btn secondary"
+                            :class="{ active: getSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, msg.results, getSelectedKnowledge(`${idx}-results`, msg.results))?.chunk_id === item.chunk_id }"
+                            @click="setSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, item.chunk_id)"
+                          >
+                            {{ getKnowledgeDisplayTitle(item, nestedIndex, '下一级') }}
+                          </button>
+                        </div>
+                        <div
+                          v-if="getSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, msg.results, getSelectedKnowledge(`${idx}-results`, msg.results))"
+                          class="rk-card nested-detail-card"
+                        >
+                          <div class="rk-header">
+                            <strong>{{ getKnowledgeDisplayTitle(getSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, msg.results, getSelectedKnowledge(`${idx}-results`, msg.results)), 0, '下一级') }}</strong>
+                            <span>{{ formatScore(getSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, msg.results, getSelectedKnowledge(`${idx}-results`, msg.results))?.score) }}</span>
+                          </div>
+                          <div class="rk-content">
+                            {{ formatKnowledgeContent(getSelectedKnowledge(`${idx}-results-${getSelectedKnowledge(`${idx}-results`, msg.results)?.chunk_id}`, msg.results, getSelectedKnowledge(`${idx}-results`, msg.results))?.content) }}
+                          </div>
+                        </div>
+                        <div
+                          v-if="isOverviewItem(getSelectedKnowledge(`${idx}-results`, msg.results)) && !getKnowledgeChildren(getSelectedKnowledge(`${idx}-results`, msg.results), msg.results).length"
+                          class="knowledge-actions"
+                        >
+                          <button
+                            type="button"
+                            class="knowledge-drill-btn"
+                            @click="drillIntoKnowledge(getSelectedKnowledge(`${idx}-results`, msg.results))"
+                          >
+                            继续查看下一层
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div
+                        v-for="(rk, ridx) in msg.results"
+                        :key="`${rk.chunk_id || 'result'}-${ridx}`"
+                        class="rk-card"
+                      >
+                        <div class="rk-header">
+                          <strong>{{ getKnowledgeDisplayTitle(rk, ridx, '结果') }}</strong>
+                          <span>{{ formatScore(rk.score) }}</span>
+                        </div>
+                        <div class="rk-content">
+                          {{ formatKnowledgeContent(rk.content) }}
+                        </div>
+                      </div>
+                    </template>
                   </div>
 
                   <div
@@ -644,6 +613,37 @@
                 </div>
               </div>
             </template>
+
+            <div
+              v-if="loading"
+              class="bubble assistant loading-bubble"
+              aria-live="polite"
+            >
+              <div class="assistant-avatar thinking-avatar">
+                <img
+                  src="/expert.png"
+                  alt="assistant thinking"
+                >
+              </div>
+
+              <div class="assistant-content-box thinking-card flow-thinking-card">
+                <div class="thinking-head">
+                  <span class="thinking-kicker">流程推进中</span>
+                  <strong>正在判断当前分支并生成下一步操作</strong>
+                </div>
+                <div class="thinking-wave" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <div class="thinking-lines" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <p class="thinking-copy">系统正在结合当前反馈、流程节点和知识库内容整理下一张步骤卡。</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -659,7 +659,7 @@
                 :class="[voiceStatusTone, { pulsing: isRecording || isSpeaking }]"
               />
               <strong>语音状态：{{ voiceStateLabel }}</strong>
-              <span v-if="voiceEnabled && recognizedText">已识别“{{ recognizedText }}”</span>
+              <span v-if="voiceEnabled && recognizedText">已识别"{{ recognizedText }}"</span>
               <span v-else-if="voiceEnabled && lastError">{{ lastError }}</span>
               <span v-else-if="voiceEnabled && currentFlowGuidance">{{ currentFlowGuidance }}</span>
             </div>
@@ -675,6 +675,8 @@
             :default-api="api"
             :default-options="options"
             :default-memory-limit="memoryLimit"
+            :collection-options="collectionOptions"
+            :collection-loading="collectionLoading"
             :is-recording="isRecording"
             :is-speaking="isSpeaking"
             :voice-enabled="voiceEnabled"
@@ -709,9 +711,9 @@
 
 
 <script setup>
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick, onMounted, watch } from 'vue'
 import { ElMessage , ElMessageBox} from 'element-plus'
-import { ArrowRight, Odometer, Clock, CircleCheck, CircleClose, Right, QuestionFilled, Warning, Tools, Delete, ArrowDown, InfoFilled } from '@element-plus/icons-vue'
+import { ArrowRight, Clock, CircleCheck, CircleClose, Right, QuestionFilled, Warning, InfoFilled } from '@element-plus/icons-vue'
 import http from '@/api/http'
 import MessageInput from '@/components/MessageInput.vue'
 import { useVoiceController } from '@/composables/useVoiceController'
@@ -719,9 +721,12 @@ import { useVoiceController } from '@/composables/useVoiceController'
 const messages = ref([])
 const loading = ref(false)
 const api = ref('search_flow_solution')
-const options = ref({ enableLLM: true, forceContent: 'fault_diagnosis', diversify: true })
+const options = ref({ enableLLM: false, collectionName: '', forceContent: 'fault_diagnosis', diversify: true })
 const memoryLimit = ref(3)
 const scrollContainer = ref(null)
+const collectionOptions = ref([])
+const collectionLoading = ref(false)
+const selectedKnowledgeMap = ref({})
 
 const {
   voiceEnabled,
@@ -743,10 +748,7 @@ const {
 
 const lastFlowActionContext = ref(null)
 const starterPrompts = [
-  '拉丝机速度异常故障诊断流程',
-  '触摸屏报 PLC 异常后应该先检查什么？',
-  '故障代码 F7011 的排查流程',
-  '设备无法启动时的标准处理步骤'
+    
 ]
 
 const latestFlowMessage = computed(() => {
@@ -757,19 +759,28 @@ const latestFlowMessage = computed(() => {
   return null
 })
 
-const currentFlowHeadline = computed(() => {
-  const firstStep = latestFlowMessage.value?.solution?.troubleshooting_steps?.[0]
-  return firstStep?.title || '未开始'
-})
-
 const currentFlowGuidance = computed(() => {
   if (!voiceEnabled.value) return '语音关闭时仍可手动点击流程卡推进。'
   if (latestFlowMessage.value?.guidance) return latestFlowMessage.value.guidance
   return '可通过语音或按钮推进当前流程。'
 })
 
-const flowStepCount = computed(() => latestFlowMessage.value?.solution?.troubleshooting_steps?.length || 0)
-const apiLabel = computed(() => api.value === 'search_flow_solution' ? '流程搜索' : api.value)
+async function fetchCollections() {
+  collectionLoading.value = true
+  try {
+    const response = await http.get('/kb/collections')
+    const items = Array.isArray(response.data) ? response.data : []
+    collectionOptions.value = items.map((item) => ({
+      label: `${item.name}${typeof item.points_count === 'number' ? ` (${item.points_count})` : ''}`,
+      value: item.name
+    }))
+  } catch (error) {
+    console.error(error)
+    collectionOptions.value = []
+  } finally {
+    collectionLoading.value = false
+  }
+}
 
 function handleVoiceToggle(enabled) {
   setVoiceEnabled(enabled)
@@ -867,11 +878,6 @@ const currentFlowId = ref(null)
 // ----------------------------------------------------------------------------------------------------------
 // 左侧标签状态
 const activeTab = ref(null)
-// 设备状态
-const deviceStatusExpanded = ref(false)
-const currentDevice = ref('deviceA')
-const deviceStatus = ref('online') // online, warning, offline
-const hasFault = ref(false)
 
 const deviceFaqs = ref([
     '拉丝机触摸屏报PLC异常',
@@ -906,11 +912,6 @@ const errorCodes = ref([
   { code: '整流器故障', description: '整流器故障' }
 ])
 
-const faultList = ref([
-  { code: 'E001', description: '电源电压不稳定' },
-  { code: 'W002', description: '温度接近上限' }
-])
-
 const panelTitle = computed(() => {
   const titles = {
     faq: '常见问题',
@@ -920,24 +921,10 @@ const panelTitle = computed(() => {
   return titles[activeTab.value] || ''
 })
 
-const deviceStatusText = computed(() => {
-  const statusMap = {
-    online: '在线',
-    warning: '异常',
-    offline: '离线'
-  }
-  return statusMap[deviceStatus.value] || '未知'
-})
 // 方法
 const toggleTab = (tab) => {
   activeTab.value = activeTab.value === tab ? null : tab
 }
-const handleDeviceChange = (val) => {
-    // 1. 清空当前对话?
-    // 2. 获取新设备的状态
-    // 3. 更新 deviceFaqs
-    console.log('切换到设备:', val);
-};
 // --- 新增历史记录状态 ---
 const chatHistory = ref([
     { id: 1, query: '拉丝机速度异常故障诊断流程', time: Date.now() },
@@ -1000,9 +987,10 @@ function scrollToLatestMessage() {
   })
 }
 // 主请求逻辑
-async function onSend({ text, api: whichApi, options: opt }) {
+async function onSend({ text, api: whichApi, options: opt, displayText }) {
   if (!text?.trim()) return
-  messages.value.push({ role: 'user', text, time: Date.now() })
+  const shownText = displayText || text
+  messages.value.push({ role: 'user', text: shownText, time: Date.now() })
   scrollToLatestMessage()
 
   const endpoint = whichApi === 'search_flow_solution' ? '/search_flow_solution' : '/search'
@@ -1011,6 +999,7 @@ async function onSend({ text, api: whichApi, options: opt }) {
   const params = {
     query_text: text,
     enable_llm_integration: !!opt.enableLLM,
+    collection_name: opt.collectionName || undefined,
     force_content_type: opt.forceContent || undefined,
     diversify_results: whichApi === 'search' ? !!opt.diversify : undefined,
     context_json: JSON.stringify(lastN)
@@ -1081,6 +1070,7 @@ async function onSend({ text, api: whichApi, options: opt }) {
           guidance: data.guidance || '',
           query_intent: data.query_intent || '',
           solution: ps,
+          results: Array.isArray(data.results) ? data.results : [],
           currentFlowId: data.current_flow_id
       }
       messages.value.push(newMsg)
@@ -1090,6 +1080,7 @@ async function onSend({ text, api: whichApi, options: opt }) {
       const newMsg = {
         role: 'assistant',
         time: Date.now(),
+        results: Array.isArray(data.results) ? data.results : [],
         guidance: data.guidance || '',
         query_intent: data.query_intent || '',
         text: data.answer || data.message || '（无可展示内容）'
@@ -1097,7 +1088,7 @@ async function onSend({ text, api: whichApi, options: opt }) {
       messages.value.push(newMsg)
       speakGuidance(newMsg)
     }
-    updateHistory(text);
+    updateHistory(shownText);
   } catch (e) {
     console.error(e)
     ElMessage.error('请求失败，请检查后端服务或控制台日志')
@@ -1155,7 +1146,8 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
 
   const params = {
     query_text: queryText,
-    enable_llm_integration: true,
+    enable_llm_integration: !!options.value.enableLLM,
+    collection_name: options.value.collectionName || undefined,
     current_flow_id: flowId,
     feedback_type: feedbackType,
     graph_mode: true,
@@ -1179,6 +1171,7 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
         guidance: data.guidance || '',
         query_intent: data.query_intent || '',
         solution: data.progressive_solution,
+        results: Array.isArray(data.results) ? data.results : [],
         currentFlowId: data.current_flow_id
       }
       messages.value.push(newMsg)
@@ -1187,6 +1180,7 @@ async function handleFlowAction(flowId, feedbackType, actionText) {
       const newMsg = {
         role: 'assistant',
         time: Date.now(),
+        results: Array.isArray(data.results) ? data.results : [],
         text: data.answer || data.message || '流程已完成或无后续步骤。'
       }
       messages.value.push(newMsg)
@@ -1247,6 +1241,68 @@ function clearAll() {
   currentFlowId.value = null
   lastFlowActionContext.value = null
   stopSpeaking()
+}
+
+function formatScore(score) {
+  const value = Number(score)
+  return Number.isFinite(value) ? value.toFixed(3) : '0.000'
+}
+
+function getKnowledgeDisplayTitle(item, index, fallbackPrefix = '结果') {
+  return item?.title || item?.chunk_id || `${fallbackPrefix} ${index + 1}`
+}
+
+function formatKnowledgeContent(content) {
+  return String(content || '')
+    .replace(/\|/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function isOverviewItem(item) {
+  return /overview/i.test(String(item?.chunk_id || ''))
+}
+
+function hasOverviewGuide(items) {
+  return Array.isArray(items) && items.length > 1 && isOverviewItem(items[0])
+}
+
+function getOverviewChildren(items) {
+  if (!hasOverviewGuide(items)) return []
+  const root = items[0]
+  const directChildren = getKnowledgeChildren(root, items)
+  return directChildren.length ? directChildren : items.slice(1)
+}
+
+function getKnowledgeChildren(parentItem, items) {
+  if (!parentItem || !Array.isArray(items)) return []
+  const parentId = String(parentItem?.chunk_id || '')
+  if (!parentId) return []
+  return items.filter((item) => String(item?.metadata?.parent_chunk_id || '') === parentId)
+}
+
+function setSelectedKnowledge(key, chunkId) {
+  selectedKnowledgeMap.value = {
+    ...selectedKnowledgeMap.value,
+    [key]: chunkId
+  }
+}
+
+function getSelectedKnowledge(key, items, parentItem = null) {
+  const children = parentItem ? getKnowledgeChildren(parentItem, items) : getOverviewChildren(items)
+  if (!children.length) return null
+  const selectedId = selectedKnowledgeMap.value[key]
+  return children.find((item) => item.chunk_id === selectedId) || children[0]
+}
+
+function drillIntoKnowledge(item) {
+  if (!item) return
+  onSend({
+    text: `__kb_drill__:${item?.chunk_id || ''} ${item?.title || ''}`.trim(),
+    displayText: `继续查看：${item?.title || item?.chunk_id || ''}`,
+    api: api.value,
+    options: options.value
+  })
 }
 
 // 提取上下文
@@ -1450,6 +1506,16 @@ function isVideo(url) {
 
 watch(() => messages.value.length, () => {
   scrollToLatestMessage()
+})
+
+watch(loading, (value) => {
+  if (value) {
+    scrollToLatestMessage()
+  }
+})
+
+onMounted(() => {
+  fetchCollections()
 })
 </script>
 
@@ -1800,7 +1866,7 @@ watch(() => messages.value.length, () => {
 
 .flow-header-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 1fr));
+  grid-template-columns: repeat(4, minmax(100px, 1fr));
   gap: 10px;
 }
 
@@ -1825,6 +1891,57 @@ watch(() => messages.value.length, () => {
 .flow-metric-card strong {
   margin-top: 6px;
   color: #1f2937;
+}
+
+/* 设备状态卡片 */
+.device-status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.device-status-compact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-selector-mini {
+  width: 100px;
+}
+
+.device-selector-mini :deep(.el-input__wrapper) {
+  padding: 4px 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.online {
+  background: #67c23a;
+}
+
+.status-dot.warning {
+  background: #e6a23c;
+}
+
+.status-dot.offline {
+  background: #909399;
+}
+
+.status-text {
+  font-size: 13px;
+  color: #1f2937;
+  font-weight: 500;
 }
 
 /* ========== 设备状态栏 ========== */
@@ -2465,6 +2582,68 @@ watch(() => messages.value.length, () => {
   color: #606266;
   line-height: 1.6;
   margin-bottom: 8px;
+  white-space: pre-line;
+}
+
+.overview-card {
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  background: linear-gradient(180deg, #f6fffc 0%, #ffffff 100%);
+}
+
+.detail-card {
+  margin-top: 10px;
+}
+
+.knowledge-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.knowledge-link-btn {
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: #ffffff;
+  color: #0f766e;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.knowledge-link-btn:hover,
+.knowledge-link-btn.active {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: #0f766e;
+}
+
+.knowledge-link-row.nested {
+  margin-top: 12px;
+}
+
+.knowledge-link-btn.secondary {
+  background: rgba(15, 118, 110, 0.08);
+}
+
+.nested-detail-card {
+  margin-top: 12px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.knowledge-actions {
+  margin-top: 10px;
+}
+
+.knowledge-drill-btn {
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
 }
 
 .rk-image {
@@ -3264,5 +3443,1173 @@ watch(() => messages.value.length, () => {
 /* 移除原有的 h3 样式或隐藏 */
 .solution h3 {
   display: none;
+}
+
+.dashboard-container,
+.page.dashboard-container {
+  min-height: calc(100vh - 76px);
+  background: transparent;
+}
+
+.main-body {
+  display: grid;
+  grid-template-columns: minmax(248px, 308px) minmax(0, 1fr);
+  gap: clamp(12px, 1.8vw, 20px);
+  padding: clamp(10px, 1.6vw, 18px);
+  min-height: calc(100vh - 76px);
+}
+
+.sidebar-tabs {
+  position: sticky;
+  top: 92px;
+  align-self: start;
+  padding: 18px;
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(24, 59, 54, 0.96), rgba(16, 38, 35, 0.96));
+  border: 1px solid rgba(65, 88, 80, 0.14);
+  box-shadow: var(--shadow-md);
+}
+
+.tab-buttons {
+  display: grid;
+  gap: 10px;
+}
+
+.tab-btn {
+  min-height: 54px;
+  padding: 0 16px;
+  border-radius: 18px;
+  color: rgba(244, 242, 235, 0.76);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform 0.22s ease, background 0.22s ease, border-color 0.22s ease;
+}
+
+.tab-btn.active,
+.tab-btn:hover {
+  transform: translateY(-1px);
+  color: #fffaf4;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(180, 107, 49, 0.12));
+  border-color: rgba(244, 222, 195, 0.28);
+}
+
+.tab-panel {
+  margin-top: 16px;
+  border-radius: 24px;
+  background: rgba(255, 251, 246, 0.92);
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: 0 20px 50px rgba(26, 34, 31, 0.14);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 18px 20px 12px;
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.panel-content {
+  padding: 0 14px 14px;
+}
+
+.list-item {
+  min-height: 58px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(65, 88, 80, 0.08);
+  background: rgba(255, 251, 246, 0.88);
+}
+
+.chat-layout {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.flow-shell-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px;
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top right, rgba(180, 107, 49, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.92), rgba(248, 243, 236, 0.78));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.flow-eyebrow {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flow-shell-copy h1 {
+  margin: 0;
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.flow-header-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(140px, 1fr));
+  gap: 12px;
+  min-width: min(100%, 520px);
+}
+
+.flow-metric-card {
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: rgba(255, 251, 246, 0.76);
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.flow-metric-card span,
+.metric-label {
+  display: block;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.flow-metric-card strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--text);
+  font-size: 15px;
+}
+
+.chat-messages-container {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+}
+
+.messages-wrapper {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.flow-empty-state {
+  display: grid;
+  gap: 16px;
+}
+
+.flow-empty-card {
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: 30px;
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.9), rgba(246, 240, 232, 0.74));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.flow-empty-card h2 {
+  margin: 0;
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: clamp(1.35rem, 2.1vw, 1.9rem);
+  line-height: 1.3;
+}
+
+.flow-empty-card p {
+  margin: 12px 0 0;
+  color: var(--text-soft);
+  line-height: 1.75;
+}
+
+.flow-starter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.flow-starter {
+  min-height: 116px;
+  padding: 18px;
+  border-radius: 22px;
+  text-align: left;
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  background: rgba(255, 251, 246, 0.86);
+  box-shadow: 0 18px 34px rgba(26, 34, 31, 0.06);
+}
+
+.bubble.user,
+.bubble.assistant {
+  display: flex;
+  gap: 14px;
+  align-items: flex-end;
+  margin-bottom: 18px;
+}
+
+.bubble.user {
+  justify-content: flex-end;
+}
+
+.bubble.user .bubble-content,
+.assistant-content-box {
+  position: relative;
+  width: min(100%, 1020px);
+  border-radius: 28px;
+  box-shadow: 0 22px 48px rgba(26, 34, 31, 0.08);
+}
+
+.bubble.user .bubble-content {
+  padding: 18px 20px;
+  color: #fffaf4;
+  background: linear-gradient(135deg, #255f56 0%, #173f3a 100%);
+}
+
+.assistant-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: rgba(255, 251, 246, 0.9);
+  box-shadow: 0 16px 30px rgba(31, 98, 89, 0.12);
+}
+
+.assistant-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.assistant-content-box {
+  padding: 20px 22px 18px;
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.92), rgba(250, 244, 237, 0.82));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+}
+
+.assistant-content-box::before {
+  height: 3px;
+  background: linear-gradient(90deg, var(--brand), rgba(180, 107, 49, 0.72));
+  border-radius: 28px 28px 0 0;
+}
+
+.diagnosis-summary-minimal {
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(222, 239, 233, 0.76), rgba(255, 251, 246, 0.8));
+  border: 1px solid rgba(31, 98, 89, 0.12);
+  color: var(--text-soft);
+}
+
+.solution h4,
+.related-knowledge h4 {
+  margin: 16px 0 12px;
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.flow-steps {
+  display: grid;
+  gap: 16px;
+}
+
+.flow-step,
+.rk-card,
+.flow-end-card {
+  border-radius: 24px;
+  background: rgba(255, 251, 246, 0.84);
+  border: 1px solid rgba(65, 88, 80, 0.1);
+  box-shadow: 0 18px 32px rgba(26, 34, 31, 0.06);
+}
+
+.flow-step {
+  padding: 18px;
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.step-header strong {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.step-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.9fr);
+  gap: 18px;
+}
+
+.instruction-card {
+  margin: 0;
+  padding: 18px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(222, 239, 233, 0.76), rgba(255, 251, 246, 0.84));
+  border-left: none;
+  border: 1px solid rgba(31, 98, 89, 0.12);
+  box-shadow: none;
+}
+
+.instruction-icon {
+  color: var(--brand);
+}
+
+.main-instruction,
+.expected,
+.rk-content,
+.bubble-content-text,
+.action-content {
+  color: var(--text);
+  line-height: 1.8;
+}
+
+.safety-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.safety-inline-label {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.safety-chip {
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(180, 107, 49, 0.12);
+  color: #8b4f22;
+}
+
+.step-media-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.image-wrapper {
+  min-height: 180px;
+  border-radius: 20px;
+  background: rgba(243, 236, 228, 0.82);
+  box-shadow: none;
+  border: 1px solid rgba(65, 88, 80, 0.08);
+}
+
+.image-wrapper:hover {
+  transform: translateY(-2px);
+}
+
+.flow-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.action-card,
+.flow-end-card {
+  border-radius: 22px !important;
+}
+
+.action-card :deep(.el-card__body),
+.flow-end-card :deep(.el-card__body) {
+  padding: 16px;
+}
+
+.action-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.action-header strong {
+  color: var(--text);
+}
+
+.action-content {
+  min-height: 72px;
+}
+
+.knowledge-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.knowledge-link-btn,
+.knowledge-drill-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 98, 89, 0.18);
+  background: rgba(255, 251, 246, 0.92);
+  color: var(--brand);
+  font-weight: 700;
+}
+
+.knowledge-link-btn.active,
+.knowledge-link-btn:hover,
+.knowledge-drill-btn:hover {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  color: #fffaf4;
+  border-color: transparent;
+}
+
+.rk-header,
+.rk-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.rk-card {
+  padding: 16px;
+}
+
+.chat-input-area {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(244, 239, 230, 0) 0%, rgba(244, 239, 230, 0.92) 18%, rgba(244, 239, 230, 0.98) 100%);
+}
+
+.voice-briefing {
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(222, 239, 233, 0.74), rgba(255, 251, 246, 0.84));
+  border: 1px solid rgba(31, 98, 89, 0.12);
+}
+
+.footer-note {
+  color: var(--text-faint);
+}
+
+@media (max-width: 1200px) {
+  .main-body {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-tabs {
+    position: relative;
+    top: 0;
+  }
+}
+
+@media (max-width: 960px) {
+  .flow-shell-header,
+  .step-layout,
+  .flow-actions,
+  .flow-header-metrics,
+  .flow-starter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-shell-header {
+    flex-direction: column;
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .step-media-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-body {
+    padding: 10px;
+    gap: 12px;
+    min-height: calc(100vh - 64px);
+  }
+
+  .sidebar-tabs {
+    padding: 12px;
+    border-radius: 24px;
+  }
+
+  .tab-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tab-btn {
+    min-height: 48px;
+    padding: 0 10px;
+    justify-content: center;
+  }
+
+  .tab-label {
+    display: none;
+  }
+
+  .bubble.user,
+  .bubble.assistant {
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .assistant-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 16px;
+  }
+
+  .bubble.user .bubble-content,
+  .assistant-content-box {
+    width: 100%;
+    padding: 16px;
+    border-radius: 24px;
+  }
+
+  .flow-step,
+  .rk-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+}
+
+.dashboard-container,
+.page.dashboard-container {
+  min-height: calc(100vh - 76px);
+}
+
+.main-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 268px) minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px;
+}
+
+.sidebar-tabs {
+  position: sticky;
+  top: 88px;
+  left: auto;
+  bottom: auto;
+  width: auto;
+  align-self: start;
+  padding: 14px;
+  pointer-events: auto;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(24, 59, 54, 0.96), rgba(16, 38, 35, 0.96));
+  border: 1px solid rgba(65, 88, 80, 0.14);
+  box-shadow: var(--shadow-md);
+  z-index: 2;
+}
+
+.tab-buttons {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  display: grid;
+  gap: 8px;
+  padding: 0;
+}
+
+.tab-btn {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 16px;
+  justify-content: flex-start;
+  flex-direction: row;
+  gap: 10px;
+  font-size: 16px;
+  box-shadow: none;
+}
+
+.tab-btn:hover,
+.tab-btn.active {
+  width: 100%;
+  transform: translateY(-1px);
+}
+
+.tab-label {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.tab-panel {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  max-width: none;
+  margin-top: 12px;
+  border-radius: 20px;
+  box-shadow: 0 18px 40px rgba(26, 34, 31, 0.14);
+  z-index: 1;
+}
+
+.panel-header {
+  padding: 16px 18px 10px;
+  font-size: 15px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.panel-content {
+  padding: 0 12px 12px;
+}
+
+.panel-close-bar,
+.panel-overlay {
+  display: none !important;
+}
+
+.list-item {
+  margin-bottom: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  transform: none !important;
+}
+
+.chat-layout {
+  gap: 12px;
+  background: transparent;
+}
+
+.flow-shell-header {
+  padding: 14px 18px;
+  border-radius: 24px;
+}
+
+.flow-shell-copy h1 {
+  font-size: clamp(1.22rem, 2vw, 1.65rem);
+  line-height: 1.15;
+}
+
+.flow-header-metrics {
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.flow-metric-card {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+.flow-metric-card strong {
+  font-size: 13px;
+}
+
+@media (max-width: 1200px) {
+  .main-body {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-tabs {
+    position: relative;
+    top: 0;
+  }
+
+  .tab-buttons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .tab-btn {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 720px) {
+  .main-body {
+    padding: 10px;
+  }
+
+  .sidebar-tabs {
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .tab-buttons {
+    gap: 6px;
+  }
+
+  .tab-btn {
+    height: 44px;
+    padding: 0 10px;
+  }
+
+  .tab-label {
+    display: none;
+  }
+
+  .flow-shell-header {
+    padding: 12px 14px;
+  }
+
+  .flow-shell-copy h1 {
+    font-size: 1.1rem;
+  }
+
+  .flow-header-metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.flow-shell-header {
+  justify-content: flex-start;
+  padding: 10px 14px;
+  min-height: auto;
+}
+
+.flow-shell-copy {
+  max-width: 820px;
+}
+
+.flow-eyebrow {
+  margin-bottom: 2px;
+  font-size: 11px;
+}
+
+.flow-shell-copy h1 {
+  font-size: 1.05rem;
+}
+
+.flow-header-copy {
+  margin: 2px 0 0;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.flow-header-metrics,
+.flow-metric-card {
+  display: none !important;
+}
+
+@media (max-width: 720px) {
+  .flow-shell-header {
+    padding: 8px 10px;
+  }
+}
+
+.loading-bubble {
+  align-items: flex-start;
+}
+
+.thinking-avatar {
+  position: relative;
+  overflow: hidden;
+}
+
+.thinking-avatar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(231, 180, 93, 0.28));
+  animation: avatarPulse 1.8s var(--ease-out-quart) infinite;
+}
+
+.thinking-card {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 12px;
+}
+
+.thinking-card::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at top right, rgba(231, 180, 93, 0.18), transparent 44%),
+    linear-gradient(180deg, rgba(255, 252, 245, 0.96), rgba(246, 238, 224, 0.92));
+  pointer-events: none;
+}
+
+.thinking-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.flow-thinking-card {
+  padding: 18px 18px 16px;
+}
+
+.thinking-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.thinking-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(28, 78, 71, 0.08);
+  color: var(--brand);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.thinking-head strong {
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.thinking-wave {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  min-height: 24px;
+}
+
+.thinking-wave span {
+  width: 7px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(24, 59, 54, 0.88), rgba(193, 137, 59, 0.82));
+  transform-origin: center bottom;
+  animation: thinkingBars 1.1s var(--ease-out-quart) infinite;
+}
+
+.thinking-wave span:nth-child(1) {
+  height: 10px;
+}
+
+.thinking-wave span:nth-child(2) {
+  height: 18px;
+  animation-delay: 0.12s;
+}
+
+.thinking-wave span:nth-child(3) {
+  height: 14px;
+  animation-delay: 0.24s;
+}
+
+.thinking-lines {
+  display: grid;
+  gap: 9px;
+}
+
+.thinking-lines span {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(206, 186, 149, 0.24), rgba(255, 255, 255, 0.9), rgba(206, 186, 149, 0.24));
+  background-size: 220% 100%;
+  animation: shimmerTrack 1.8s linear infinite;
+}
+
+.thinking-lines span:nth-child(1) {
+  width: min(100%, 340px);
+}
+
+.thinking-lines span:nth-child(2) {
+  width: min(88%, 296px);
+  animation-delay: 0.18s;
+}
+
+.thinking-lines span:nth-child(3) {
+  width: min(76%, 240px);
+  animation-delay: 0.34s;
+}
+
+.thinking-copy {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+@keyframes avatarPulse {
+  0%, 100% {
+    opacity: 0.64;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes thinkingBars {
+  0%, 100% {
+    transform: scaleY(0.68);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1.16);
+    opacity: 1;
+  }
+}
+
+@keyframes shimmerTrack {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: -100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-avatar::after,
+  .thinking-wave span,
+  .thinking-lines span {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .flow-thinking-card {
+    padding: 16px 14px 14px;
+  }
+
+  .thinking-head {
+    gap: 6px 10px;
+  }
+
+  .thinking-head strong {
+    font-size: 14px;
+  }
+}
+
+.bubble.assistant {
+  gap: 12px;
+}
+
+.bubble.user .bubble-content {
+  max-width: min(74%, 680px);
+  padding: 12px 16px;
+  border-radius: 18px 18px 6px 18px;
+  background: linear-gradient(145deg, #1e6a61 0%, #174d46 100%);
+  box-shadow: 0 16px 30px rgba(23, 72, 65, 0.16);
+  font-size: 14px;
+  line-height: 1.68;
+}
+
+.assistant-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  border-color: rgba(255, 251, 246, 0.9);
+  box-shadow: 0 12px 24px rgba(23, 39, 35, 0.08);
+}
+
+.assistant-content-box {
+  padding: 14px 16px;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(247, 241, 233, 0.92));
+  border: 1px solid rgba(65, 88, 80, 0.1);
+  box-shadow: 0 18px 34px rgba(27, 42, 37, 0.07);
+}
+
+.assistant-content-box::before {
+  height: 2px;
+  background: linear-gradient(90deg, rgba(31, 98, 89, 0.92), rgba(180, 107, 49, 0.78));
+}
+
+.assistant-head {
+  margin-bottom: 8px;
+}
+
+.diagnosis-summary-minimal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 10px;
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.summary-item {
+  color: var(--text-soft);
+}
+
+.summary-divider {
+  color: rgba(82, 99, 93, 0.45);
+}
+
+.solution h4,
+.related-knowledge.compact-results h4 {
+  margin: 10px 0 8px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.flow-steps {
+  gap: 12px;
+}
+
+.flow-step {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(65, 88, 80, 0.1);
+  background: linear-gradient(180deg, rgba(252, 249, 244, 0.96), rgba(244, 237, 228, 0.86));
+  box-shadow: 0 14px 28px rgba(27, 42, 37, 0.05);
+  transition:
+    transform 220ms var(--ease-out-quart),
+    box-shadow 220ms var(--ease-out-quart),
+    border-color 220ms var(--ease-out-quart);
+}
+
+.flow-step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 34px rgba(27, 42, 37, 0.08);
+  border-color: rgba(180, 107, 49, 0.18);
+}
+
+.step-header {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+}
+
+.step-header strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.step-layout {
+  gap: 14px;
+}
+
+.instruction-card {
+  padding: 12px 13px;
+  border-radius: 14px;
+  background: rgba(255, 251, 246, 0.88);
+  border: 1px solid rgba(65, 88, 80, 0.08);
+}
+
+.instruction-icon {
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.step-body .desc,
+.bubble-content-text,
+.rk-content {
+  font-size: 13px;
+  line-height: 1.68;
+  color: #34423e;
+}
+
+.step-body .expected {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(135deg, rgba(244, 228, 211, 0.6), rgba(255, 250, 244, 0.92));
+  box-shadow: none;
+}
+
+.flow-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.action-card,
+.action-card :deep(.el-card__body) {
+  border-radius: 16px;
+}
+
+.action-card {
+  min-height: 0;
+  border: 1px solid rgba(65, 88, 80, 0.08);
+  transition:
+    transform 220ms var(--ease-out-quart),
+    box-shadow 220ms var(--ease-out-quart),
+    border-color 220ms var(--ease-out-quart);
+}
+
+.action-card :deep(.el-card__body) {
+  padding: 12px 13px 13px;
+}
+
+.action-card:hover {
+  transform: translateY(-2px);
+}
+
+.action-header {
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.action-content {
+  margin-bottom: 8px;
+  font-size: 13px;
+  line-height: 1.62;
+}
+
+.action-card .el-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.action-links :deep(.el-tag) {
+  min-height: 24px;
+  border-radius: 999px;
+}
+
+.flow-end-card {
+  border-radius: 18px;
+}
+
+.meta {
+  margin-top: 6px;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .step-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .bubble.assistant {
+    gap: 10px;
+  }
+
+  .assistant-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+  }
+
+  .bubble.user .bubble-content,
+  .assistant-content-box {
+    width: 100%;
+    max-width: 100%;
+    padding: 13px 14px;
+    border-radius: 18px;
+  }
+
+  .bubble.user .bubble-content {
+    margin-left: 14px;
+  }
+
+  .flow-step {
+    padding: 12px;
+    border-radius: 16px;
+  }
+
+  .action-card :deep(.el-card__body) {
+    padding: 11px 12px 12px;
+  }
 }
 </style>

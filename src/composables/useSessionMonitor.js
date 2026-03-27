@@ -1,5 +1,5 @@
 // composables/useSessionMonitor.js - 会话监控Hook
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
@@ -13,6 +13,7 @@ export function useSessionMonitor(options = {}) {
 
   const {
     checkInterval = 30000, // 检查间隔(毫秒) - 默认30秒
+    inactivityTimeout = 15 * 60 * 1000, // 连续未操作超时
     warningTime = 120000, // 超时前警告时间(毫秒) - 默认2分钟
     onWarning = null, // 警告回调
     onExpired = null // 过期回调
@@ -31,28 +32,37 @@ export function useSessionMonitor(options = {}) {
     'click'
   ]
 
+  const scheduleWarning = () => {
+    if (warningTimer) {
+      clearTimeout(warningTimer)
+      warningTimer = null
+    }
+
+    if (!store.isLoggedIn) return
+
+    const elapsed = Date.now() - store.lastActivityTime
+    const remaining = inactivityTimeout - elapsed
+    const timeUntilWarning = remaining - warningTime
+
+    if (remaining <= warningTime) {
+      onWarning?.()
+      return
+    }
+
+    if (timeUntilWarning > 0) {
+      warningTimer = setTimeout(() => {
+        if (store.isLoggedIn) {
+          onWarning?.()
+        }
+      }, timeUntilWarning)
+    }
+  }
+
   // 处理用户活动
   const handleActivity = () => {
     if (store.isLoggedIn) {
       store.updateActivity()
-      
-      // 清除警告定时器
-      if (warningTimer) {
-        clearTimeout(warningTimer)
-        warningTimer = null
-      }
-      
-      // 设置新的警告定时器
-      const sessionDuration = 15 * 60 * 1000 // 15分钟
-      const timeUntilWarning = sessionDuration - warningTime
-      
-      if (timeUntilWarning > 0) {
-        warningTimer = setTimeout(() => {
-          if (onWarning && store.isLoggedIn) {
-            onWarning()
-          }
-        }, timeUntilWarning)
-      }
+      scheduleWarning()
     }
   }
 
@@ -80,13 +90,15 @@ export function useSessionMonitor(options = {}) {
 
   // 启动监控
   const startMonitoring = () => {
+    stopMonitoring()
+
     // 添加活动事件监听
     activityEvents.forEach(event => {
       window.addEventListener(event, handleActivity, { passive: true })
     })
 
     // 初始化活动
-    handleActivity()
+    scheduleWarning()
 
     // 启动定期检查
     checkTimer = setInterval(checkSession, checkInterval)
@@ -116,6 +128,14 @@ export function useSessionMonitor(options = {}) {
     if (store.isLoggedIn) {
       startMonitoring()
     }
+  })
+
+  watch(() => store.isLoggedIn, (loggedIn) => {
+    if (loggedIn) {
+      startMonitoring()
+      return
+    }
+    stopMonitoring()
   })
 
   // 组件卸载时停止

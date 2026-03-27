@@ -5,7 +5,12 @@
         <aside class="sidebar">
           <div class="sidebar-section">
             <h3 class="section-title">
-              <span>📋</span>设备列表
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+                <line x1="9" y1="21" x2="9" y2="9"/>
+              </svg>
+              设备列表
             </h3>
             <div class="search-box">
               <el-input
@@ -100,7 +105,12 @@
 
           <div class="sidebar-section">
             <h3 class="section-title">
-              <span>⚠️</span>待保养设备
+              <svg class="section-icon warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
+                <line x1="12" y1="9" x2="12" y2="13"/>
+                <line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+              待保养设备
             </h3>
             <el-tabs
               v-model="activeTab"
@@ -161,7 +171,14 @@
 
           <div class="sidebar-section">
             <h3 class="section-title">
-              <span>📝</span>保养模板
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+              保养模板
             </h3>
             <div class="template-list">
               <div
@@ -195,7 +212,11 @@
                   type="primary"
                   @click="showMaintenanceForm = true"
                 >
-                  <span>🔧</span>快速保养
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  快速保养
                 </el-button>
               </div>
             </div>
@@ -304,7 +325,11 @@
             v-else
             class="placeholder"
           >
-            <span class="placeholder-icon">📋</span>
+            <svg class="placeholder-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
             <p>请从左侧选择设备查看详情</p>
           </div>
         </main>
@@ -827,9 +852,14 @@ function submitMaintenance() {
 </script>
 
 <style scoped>
+/* ====================================
+   AI 知识库风格维修台账页面
+   Color: Blue (#2563EB) based theme
+==================================== */
+
 .maintenance-layout {
   min-height: calc(100vh - 64px);
-  background: linear-gradient(135deg, #f5f7fa 0%, #e8eaf6 100%);
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
   padding: 20px;
 }
 
@@ -855,25 +885,37 @@ function submitMaintenance() {
   background: white;
   border-radius: 16px;
   padding: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s ease;
+  border: 1px solid #e2e8f0;
 }
 
 .sidebar-section:hover {
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
 .section-title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 12px 0;
-  font-size: 16px;
+  gap: 10px;
+  margin: 0 0 14px 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
   font-weight: 600;
-  color: #2d3748;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #f0f0f0;
+  color: #1e293b;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.section-icon {
+  width: 20px;
+  height: 20px;
+  color: #2563eb;
+  flex-shrink: 0;
+}
+
+.section-icon.warning {
+  color: #f59e0b;
 }
 
 .search-box {
@@ -900,21 +942,21 @@ function submitMaintenance() {
 .equipment-item {
   padding: 12px;
   border-radius: 10px;
-  background: #f8f9fa;
+  background: #f8fafc;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border: 2px solid transparent;
 }
 
 .equipment-item:hover {
-  background: #edf2f7;
+  background: #eff6ff;
   transform: translateX(4px);
 }
 
 .equipment-item.active {
-  border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border-color: #2563eb;
+  background: #eff6ff;
 }
 
 .item-header {
@@ -926,7 +968,7 @@ function submitMaintenance() {
 
 .item-name {
   font-weight: 600;
-  color: #2d3748;
+  color: #1e293b;
   font-size: 14px;
 }
 
@@ -934,7 +976,7 @@ function submitMaintenance() {
   display: flex;
   gap: 12px;
   font-size: 12px;
-  color: #718096;
+  color: #64748b;
   margin-bottom: 4px;
 }
 
@@ -943,17 +985,17 @@ function submitMaintenance() {
 }
 
 .text-danger {
-  color: #e53e3e;
+  color: #ef4444;
   font-weight: 600;
 }
 
 .text-warning {
-  color: #ed8936;
+  color: #f59e0b;
   font-weight: 600;
 }
 
 .text-success {
-  color: #38a169;
+  color: #16a34a;
 }
 
 .due-tabs {
@@ -973,18 +1015,18 @@ function submitMaintenance() {
 .due-item {
   padding: 10px 12px;
   border-radius: 8px;
-  background: #fff7ed;
+  background: #fef3c7;
   margin-bottom: 8px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   border: 2px solid transparent;
 }
 
 .due-item:hover {
-  background: #ffedd5;
+  background: #fde68a;
   transform: translateX(4px);
 }
 
@@ -998,18 +1040,18 @@ function submitMaintenance() {
 
 .due-name {
   font-weight: 600;
-  color: #2d3748;
+  color: #1e293b;
   font-size: 13px;
 }
 
 .due-days {
   font-size: 12px;
-  color: #ed8936;
+  color: #b45309;
   font-weight: 600;
 }
 
 .due-item.overdue .due-days {
-  color: #e53e3e;
+  color: #dc2626;
 }
 
 .template-list {
@@ -1020,21 +1062,21 @@ function submitMaintenance() {
 .template-item {
   padding: 12px;
   border-radius: 10px;
-  background: #f0f9ff;
+  background: #eff6ff;
   margin-bottom: 8px;
-  border-left: 4px solid #3b82f6;
+  border-left: 3px solid #2563eb;
 }
 
 .template-name {
   font-weight: 600;
-  color: #1e3a8a;
+  color: #1e40af;
   font-size: 14px;
   margin-bottom: 4px;
 }
 
 .template-cycle {
   font-size: 12px;
-  color: #3b82f6;
+  color: #2563eb;
   margin-bottom: 4px;
 }
 
@@ -1054,7 +1096,8 @@ function submitMaintenance() {
   background: white;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
   animation: fadeIn 0.3s ease;
 }
 
@@ -1075,17 +1118,26 @@ function submitMaintenance() {
   align-items: center;
   margin-bottom: 24px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #f0f0f0;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .detail-header h2 {
   margin: 0;
-  font-size: 24px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 22px;
   font-weight: 700;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
 }
 
 .detail-cards {
@@ -1098,7 +1150,7 @@ function submitMaintenance() {
 .info-card,
 .template-card,
 .records-card {
-  background: #f8f9fa;
+  background: #f8fafc;
   border-radius: 12px;
   padding: 16px;
   border: 1px solid #e2e8f0;
@@ -1112,9 +1164,10 @@ function submitMaintenance() {
 .template-card h3,
 .records-card h3 {
   margin: 0 0 12px 0;
-  font-size: 16px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
   font-weight: 600;
-  color: #2d3748;
+  color: #1e293b;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1133,22 +1186,22 @@ function submitMaintenance() {
 
 .record-executor {
   font-size: 13px;
-  color: #718096;
+  color: #64748b;
 }
 
 .record-body p {
   margin: 4px 0;
   font-size: 13px;
-  color: #4a5568;
+  color: #475569;
   line-height: 1.5;
 }
 
 .problem-text {
-  color: #ed8936 !important;
+  color: #b45309 !important;
 }
 
 .result-text {
-  color: #38a169 !important;
+  color: #16a34a !important;
 }
 
 .placeholder {
@@ -1159,18 +1212,21 @@ function submitMaintenance() {
   justify-content: center;
   background: white;
   border-radius: 16px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
   min-height: 400px;
 }
 
 .placeholder-icon {
-  font-size: 64px;
+  width: 64px;
+  height: 64px;
+  color: #cbd5e1;
   margin-bottom: 16px;
 }
 
 .placeholder p {
   font-size: 16px;
-  color: #718096;
+  color: #64748b;
 }
 
 ::-webkit-scrollbar {
@@ -1178,17 +1234,17 @@ function submitMaintenance() {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #f1f5f9;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #667eea;
+  background: #2563eb;
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #764ba2;
+  background: #1d4ed8;
 }
 
 @media (max-width: 1024px) {
@@ -1202,6 +1258,226 @@ function submitMaintenance() {
   
   .detail-cards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .maintenance-layout {
+    padding: 12px;
+  }
+  
+  .detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .detail-header h2 {
+    font-size: 20px;
+  }
+}
+
+.maintenance-layout {
+  min-height: calc(100vh - 76px);
+  padding: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(31, 98, 89, 0.1), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(180, 107, 49, 0.12), transparent 22%),
+    linear-gradient(180deg, #f4efe6 0%, #f7f3ec 100%);
+}
+
+.content-wrapper {
+  gap: 14px;
+  min-height: calc(100vh - 104px);
+}
+
+.sidebar {
+  width: 336px;
+  gap: 14px;
+}
+
+.sidebar-section,
+.equipment-detail,
+.placeholder {
+  border-radius: 24px;
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  background:
+    radial-gradient(circle at top right, rgba(180, 107, 49, 0.1), transparent 26%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(246, 240, 232, 0.9));
+  box-shadow: var(--shadow-sm);
+}
+
+.section-title,
+.detail-header h2,
+.info-card h3,
+.template-card h3,
+.records-card h3 {
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  color: var(--text);
+}
+
+.section-title {
+  font-size: 14px;
+  border-bottom-color: rgba(65, 88, 80, 0.1);
+}
+
+.section-icon {
+  color: var(--brand);
+}
+
+.section-icon.warning {
+  color: var(--accent);
+}
+
+.equipment-item,
+.template-item {
+  border-radius: 16px;
+  border: 1px solid rgba(65, 88, 80, 0.08);
+}
+
+.equipment-item {
+  background: rgba(255, 251, 246, 0.76);
+}
+
+.equipment-item:hover,
+.equipment-item.active {
+  background: rgba(31, 98, 89, 0.08);
+}
+
+.equipment-item.active {
+  border-color: rgba(31, 98, 89, 0.24);
+}
+
+.item-name,
+.due-name,
+.template-name {
+  color: var(--text);
+}
+
+.item-detail,
+.template-content,
+.record-executor,
+.placeholder p {
+  color: var(--text-soft);
+}
+
+.due-item {
+  border-radius: 16px;
+  border: 1px solid rgba(180, 107, 49, 0.14);
+  background: rgba(244, 228, 211, 0.5);
+}
+
+.due-item:hover {
+  background: rgba(244, 228, 211, 0.76);
+}
+
+.due-item.overdue {
+  border-color: rgba(182, 84, 69, 0.18);
+  background: rgba(247, 223, 219, 0.46);
+}
+
+.due-item.overdue:hover {
+  background: rgba(247, 223, 219, 0.72);
+}
+
+.due-days {
+  color: #9a5929;
+}
+
+.due-item.overdue .due-days,
+.text-danger {
+  color: #b65445;
+}
+
+.text-warning {
+  color: var(--accent);
+}
+
+.text-success,
+.result-text {
+  color: #2a7a68 !important;
+}
+
+.template-item {
+  background: rgba(31, 98, 89, 0.06);
+  border-left: 3px solid var(--brand);
+}
+
+.template-cycle {
+  color: var(--brand);
+}
+
+.detail-header {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom-color: rgba(65, 88, 80, 0.1);
+}
+
+.detail-header h2 {
+  font-size: 20px;
+}
+
+.info-card,
+.template-card,
+.records-card {
+  border-radius: 20px;
+  background: rgba(255, 251, 246, 0.68);
+  border: 1px solid rgba(65, 88, 80, 0.1);
+}
+
+.problem-text {
+  color: #9a5929 !important;
+}
+
+.placeholder-icon {
+  color: rgba(31, 98, 89, 0.26);
+}
+
+.maintenance-layout :deep(.el-input__wrapper),
+.maintenance-layout :deep(.el-textarea__inner),
+.maintenance-layout :deep(.el-select__wrapper) {
+  border-radius: 14px;
+  background: rgba(255, 251, 246, 0.82);
+  box-shadow: 0 0 0 1px rgba(65, 88, 80, 0.12) inset;
+}
+
+.maintenance-layout :deep(.el-table) {
+  --el-table-border-color: rgba(65, 88, 80, 0.1);
+  --el-table-header-bg-color: rgba(244, 237, 228, 0.72);
+  --el-table-tr-bg-color: rgba(255, 251, 246, 0.6);
+  --el-table-row-hover-bg-color: rgba(31, 98, 89, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.maintenance-layout :deep(.el-descriptions__body),
+.maintenance-layout :deep(.el-timeline-item__content .el-card) {
+  border-radius: 16px;
+  border-color: rgba(65, 88, 80, 0.1);
+}
+
+.maintenance-layout :deep(.el-button--primary) {
+  --el-button-bg-color: var(--brand);
+  --el-button-border-color: var(--brand);
+  --el-button-hover-bg-color: var(--brand-strong);
+  --el-button-hover-border-color: var(--brand-strong);
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 100%;
+  }
+}
+
+@media (max-width: 768px) {
+  .maintenance-layout {
+    padding: 10px;
+  }
+
+  .sidebar-section,
+  .equipment-detail,
+  .placeholder {
+    border-radius: 20px;
   }
 }
 </style>

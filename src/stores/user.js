@@ -3,13 +3,20 @@ import { defineStore } from 'pinia'
 import { setCookie, getCookie, deleteCookie, refreshCookie } from '@/utils/cookie'
 
 const TOKEN_KEY = 'auth_token'
-const SESSION_DURATION = 15 // 会话持续时间(分钟)
+const LAST_ACTIVITY_KEY = 'last_activity_time'
+const TOKEN_COOKIE_DURATION = 7 * 24 * 60 // 登录凭证保留 7 天
+const INACTIVITY_TIMEOUT = 15 // 连续未操作 15 分钟后登出
+
+const loadLastActivityTime = () => {
+  const raw = Number(window.localStorage.getItem(LAST_ACTIVITY_KEY) || 0)
+  return Number.isFinite(raw) && raw > 0 ? raw : Date.now()
+}
 
 export const useUserStore = defineStore('user', {
   state: () => ({
     token: getCookie(TOKEN_KEY) || null,
     userInfo: null,
-    lastActivityTime: Date.now()
+    lastActivityTime: loadLastActivityTime()
   }),
 
   getters: {
@@ -24,7 +31,7 @@ export const useUserStore = defineStore('user', {
      */
     setToken(token) {
       this.token = token
-      setCookie(TOKEN_KEY, token, SESSION_DURATION)
+      setCookie(TOKEN_KEY, token, TOKEN_COOKIE_DURATION)
       this.updateActivity()
     },
 
@@ -40,8 +47,9 @@ export const useUserStore = defineStore('user', {
      */
     updateActivity() {
       this.lastActivityTime = Date.now()
+      window.localStorage.setItem(LAST_ACTIVITY_KEY, String(this.lastActivityTime))
       if (this.token) {
-        refreshCookie(TOKEN_KEY, SESSION_DURATION)
+        refreshCookie(TOKEN_KEY, TOKEN_COOKIE_DURATION)
       }
     },
 
@@ -61,7 +69,7 @@ export const useUserStore = defineStore('user', {
       // 检查最后活动时间
       const now = Date.now()
       const timeSinceLastActivity = now - this.lastActivityTime
-      const maxInactiveTime = SESSION_DURATION * 60 * 1000
+      const maxInactiveTime = INACTIVITY_TIMEOUT * 60 * 1000
       
       return timeSinceLastActivity > maxInactiveTime
     },
@@ -74,6 +82,7 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       this.lastActivityTime = 0
       deleteCookie(TOKEN_KEY)
+      window.localStorage.removeItem(LAST_ACTIVITY_KEY)
     },
 
     /**
@@ -83,7 +92,12 @@ export const useUserStore = defineStore('user', {
       const token = getCookie(TOKEN_KEY)
       if (token) {
         this.token = token
-        this.updateActivity()
+        this.lastActivityTime = loadLastActivityTime()
+        if (this.isSessionExpired()) {
+          this.logout()
+          return false
+        }
+        refreshCookie(TOKEN_KEY, TOKEN_COOKIE_DURATION)
         return true
       }
       return false

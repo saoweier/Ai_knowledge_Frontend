@@ -1,19 +1,9 @@
 ﻿<template>
   <div class="extractor-page">
     <header class="hero">
-      <div>
-        <p class="hero-kicker">Industrial Knowledge Extractor</p>
+      <div class="hero-title-area">
         <h1>知识提炼工作台</h1>
-        <p class="hero-subtitle">
-          先生成知识块，再生成故障图谱。图谱步骤关系只允许使用 `IF_SUCCESS`、`IF_FAILED`、`NEXT_STEP`。
-        </p>
-      </div>
-      <div class="hero-badges">
-        <el-tag type="info">接口：/api/kb/extractor/*</el-tag>
-        <el-tag v-if="preview.routing?.route_type" type="success">路由：{{ preview.routing.route_type }}</el-tag>
-        <el-tag v-if="knowledgeIssues.length" type="warning">知识校验：{{ knowledgeIssues.length }}</el-tag>
-        <el-tag v-if="knowledgeReady" :type="knowledgeRiskTagType">重复风险：{{ knowledgeRiskLabel }}</el-tag>
-        <el-tag v-if="graphReady" :type="graphRiskTagType">图谱审核：{{ graphRiskLabel }}</el-tag>
+        <p class="hero-subtitle">先生成知识块，再生成故障图谱</p>
       </div>
     </header>
 
@@ -28,10 +18,11 @@
 
         <div class="input-grid">
           <div class="text-pane">
+            <el-input v-model="form.title" placeholder="故障名称/标题（作为 Fault.name 候选）" class="title-input" />
             <el-input
               v-model="form.text"
               type="textarea"
-              :rows="11"
+              :rows="8"
               resize="vertical"
               placeholder="粘贴设备说明、故障经验或排查步骤文本"
             />
@@ -39,29 +30,15 @@
 
           <div class="control-pane">
             <div class="field-row compact-fields">
-              <el-input v-model="form.title" placeholder="故障名称/标题（作为 Fault.name 候选）" />
               <el-input v-model="form.collectionName" placeholder="Qdrant 集合名" />
-            </div>
-
-            <div class="preset-wrap compact-preset">
-              <div class="preset-head">
-                <span>分块档位</span>
-                <el-tag size="small" type="info">{{ currentPreset.label }}</el-tag>
+              <div class="preset-compact">
+                <span class="preset-label">分块</span>
+                <el-select v-model="form.presetIndex" size="small">
+                  <el-option :value="0" label="小" />
+                  <el-option :value="1" label="中" />
+                  <el-option :value="2" label="大" />
+                </el-select>
               </div>
-              <el-slider
-                v-model="form.presetIndex"
-                :min="0"
-                :max="2"
-                :step="1"
-                :marks="presetMarks"
-                show-stops
-              />
-            </div>
-
-            <div class="hint-row compact-hints">
-              <code>preset={{ effectiveParams.chunkingPreset }}</code>
-              <code>maxChunks={{ effectiveParams.maxVectorChunks }}</code>
-              <code>collection={{ form.collectionName }}</code>
             </div>
 
             <div class="action-row compact-actions">
@@ -374,12 +351,10 @@ const PRESETS = [
   { label: '3档-大', chunkingPreset: 'large', maxVectorChunks: 6 }
 ]
 
-const presetMarks = { 0: '1档', 1: '2档', 2: '3档' }
-
 const form = reactive({
   text: '',
   title: '',
-  presetIndex: 1,
+  presetIndex: 0,
   collectionName: 'final_chunk_knowledge_v1.1'
 })
 
@@ -1096,40 +1071,29 @@ async function performGraphIngest() {
 
 .hero {
   display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: flex-start;
-  padding: 18px 20px;
-  border-radius: 16px;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 12px;
   background: linear-gradient(135deg, #ffffff, #eef5ff);
   border: 1px solid var(--line-soft);
 }
 
-.hero-kicker {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--text-soft);
+.hero-title-area {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
 }
 
 .hero h1 {
   margin: 0;
-  font-size: 28px;
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .hero-subtitle {
-  margin: 10px 0 0;
-  max-width: 760px;
+  margin: 0;
   color: var(--text-soft);
-  line-height: 1.7;
-}
-
-.hero-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
+  font-size: 13px;
 }
 
 .workspace {
@@ -1245,19 +1209,26 @@ async function performGraphIngest() {
 
 .field-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto;
   gap: 12px;
+  align-items: center;
 }
 
 .input-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 0.8fr);
   gap: 14px;
 }
 
-.text-pane,
-.control-pane {
+.text-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-width: 0;
+}
+
+.title-input {
+  flex-shrink: 0;
 }
 
 .control-pane {
@@ -1275,17 +1246,15 @@ async function performGraphIngest() {
   margin-top: 0;
 }
 
-.preset-wrap {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: #f7fbff;
-  border: 1px solid #d7e4f4;
+.preset-compact {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-.preset-head {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
+.preset-label {
+  font-size: 13px;
+  color: var(--text-soft);
 }
 
 .hint-row {
@@ -1493,6 +1462,73 @@ async function performGraphIngest() {
   .action-row {
     grid-template-columns: 1fr;
   }
+}
+
+.extractor-page {
+  --bg-main: #f4efe6;
+  --bg-card: rgba(255, 251, 246, 0.94);
+  --line: #1f6259;
+  --line-soft: rgba(65, 88, 80, 0.16);
+  --text-main: #1b2a25;
+  --text-soft: #52635d;
+  --node-bg: #eef4f0;
+  --node-border: rgba(31, 98, 89, 0.28);
+  background:
+    radial-gradient(circle at top left, rgba(31, 98, 89, 0.1), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(180, 107, 49, 0.12), transparent 22%),
+    linear-gradient(180deg, #f4efe6 0%, #f7f3ec 100%);
+}
+
+.hero {
+  padding: 10px 14px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(180, 107, 49, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.92), rgba(246, 240, 232, 0.82));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.hero h1 {
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: 18px;
+}
+
+.hero-subtitle {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.panel {
+  border-radius: 22px;
+  border-color: rgba(65, 88, 80, 0.12);
+  background: rgba(255, 251, 246, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.graph-stage,
+.empty-box,
+.graph-structure-strip,
+.graph-preview-summary,
+.stat-strip,
+.audit-overview,
+.review-summary {
+  border-color: rgba(65, 88, 80, 0.12);
+}
+
+.graph-stage,
+.empty-box,
+.graph-structure-strip,
+.graph-preview-summary,
+.stat-strip,
+.audit-overview {
+  background: rgba(255, 251, 246, 0.76);
+}
+
+.preview-panel pre,
+.result-box pre {
+  background: #21312d;
+  color: #edf4f1;
 }
 </style>
 

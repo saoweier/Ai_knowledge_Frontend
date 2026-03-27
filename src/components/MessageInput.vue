@@ -101,6 +101,18 @@
           />
         </el-tooltip>
 
+        <el-tooltip content="清空对话" placement="top">
+          <el-button
+            type="danger"
+            size="small"
+            circle
+            class="clear-btn"
+            @click="emit('clear')"
+          >
+            <el-icon><Delete /></el-icon>
+          </el-button>
+        </el-tooltip>
+
         <el-button
           type="primary"
           class="send-button"
@@ -117,6 +129,17 @@
         v-if="settingsOpen"
         class="settings-panel"
       >
+        <div class="settings-header">
+          <span class="settings-title">高级配置</span>
+          <button
+            type="button"
+            class="settings-collapse-btn"
+            @click="settingsOpen = false"
+          >
+            <el-icon><ArrowUp /></el-icon>
+            收起
+          </button>
+        </div>
         <div class="settings-grid">
           <div class="setting-card">
             <span class="setting-label">接口模式</span>
@@ -159,6 +182,30 @@
           </div>
 
           <div class="setting-card">
+            <span class="setting-label">向量库</span>
+            <el-select
+              v-model="options.collectionName"
+              size="large"
+              filterable
+              clearable
+              :loading="collectionLoading"
+              placeholder="默认向量库（当前配置）"
+            >
+              <el-option
+                label="默认向量库（当前配置）"
+                value=""
+              />
+              <el-option
+                v-for="item in collectionOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+            <small>可直接切换到重构后的新向量库做效果对比。</small>
+          </div>
+
+          <div class="setting-card">
             <span class="setting-label">结果多样化</span>
             <template v-if="api === 'search'">
               <el-switch v-model="options.diversify" />
@@ -182,7 +229,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Microphone, Setting, VideoPause } from '@element-plus/icons-vue'
+import { Microphone, Setting, VideoPause, Delete, ArrowUp } from '@element-plus/icons-vue'
 
 const props = defineProps({
   defaultApi: {
@@ -196,6 +243,14 @@ const props = defineProps({
   defaultMemoryLimit: {
     type: Number,
     default: 3
+  },
+  collectionOptions: {
+    type: Array,
+    default: () => []
+  },
+  collectionLoading: {
+    type: Boolean,
+    default: false
   },
   loading: {
     type: Boolean,
@@ -258,11 +313,23 @@ const emit = defineEmits([
 const text = ref('')
 const settingsOpen = ref(false)
 const api = ref(props.defaultApi || 'search_with_solution')
-const options = ref({
-  enableLLM: props.defaultOptions?.enableLLM ?? true,
-  forceContent: props.defaultOptions?.forceContent || '',
-  diversify: props.defaultOptions?.diversify ?? true
+const normalizeOptions = (value = {}) => ({
+  enableLLM: value?.enableLLM ?? false,
+  collectionName: value?.collectionName || '',
+  forceContent: value?.forceContent || '',
+  diversify: value?.diversify ?? true
 })
+
+const isSameOptions = (left, right) => {
+  const a = normalizeOptions(left)
+  const b = normalizeOptions(right)
+  return a.enableLLM === b.enableLLM
+    && a.collectionName === b.collectionName
+    && a.forceContent === b.forceContent
+    && a.diversify === b.diversify
+}
+
+const options = ref(normalizeOptions(props.defaultOptions))
 const memory = ref(props.defaultMemoryLimit ?? 3)
 const voiceEnabled = ref(props.voiceEnabled ?? false)
 
@@ -273,10 +340,9 @@ watch(() => props.defaultApi, (value) => {
 })
 
 watch(() => props.defaultOptions, (value) => {
-  options.value = {
-    enableLLM: value?.enableLLM ?? true,
-    forceContent: value?.forceContent || '',
-    diversify: value?.diversify ?? true
+  const nextOptions = normalizeOptions(value)
+  if (!isSameOptions(options.value, nextOptions)) {
+    options.value = nextOptions
   }
 }, { deep: true })
 
@@ -289,7 +355,11 @@ watch(() => props.voiceEnabled, (value) => {
 })
 
 watch(api, (value) => emit('update:api', value))
-watch(options, (value) => emit('update:options', value), { deep: true })
+watch(options, (value) => {
+  if (!isSameOptions(value, props.defaultOptions)) {
+    emit('update:options', { ...normalizeOptions(value) })
+  }
+}, { deep: true })
 watch(memory, (value) => emit('update:memory', Number(value)))
 watch(voiceEnabled, (value) => emit('update:voiceEnabled', value))
 
@@ -320,6 +390,8 @@ function handleVoiceToggle(value) {
     linear-gradient(180deg, #ffffff 0%, #f6f7f4 100%);
   border: 1px solid rgba(20, 84, 74, 0.12);
   box-shadow: 0 12px 28px rgba(20, 84, 74, 0.07);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input-meta {
@@ -475,6 +547,10 @@ function handleVoiceToggle(value) {
   animation: pulse 1.2s infinite;
 }
 
+.clear-btn {
+  flex-shrink: 0;
+}
+
 .send-button {
   min-width: 82px;
   height: 40px;
@@ -487,6 +563,42 @@ function handleVoiceToggle(value) {
 .settings-panel {
   border-top: 1px solid rgba(20, 84, 74, 0.08);
   padding-top: 2px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px 12px;
+  border-bottom: 1px solid rgba(20, 84, 74, 0.06);
+  margin-bottom: 12px;
+}
+
+.settings-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.settings-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1px solid rgba(20, 84, 74, 0.18);
+  border-radius: 10px;
+  background: rgba(15, 118, 110, 0.08);
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-collapse-btn:hover {
+  background: #0f766e;
+  color: #ffffff;
+  border-color: #0f766e;
 }
 
 .settings-grid {
@@ -555,6 +667,159 @@ function handleVoiceToggle(value) {
 
   .settings-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+.input-shell {
+  gap: 12px;
+  padding: 16px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(31, 98, 89, 0.12), transparent 34%),
+    radial-gradient(circle at top right, rgba(180, 107, 49, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(246, 240, 232, 0.92));
+  border: 1px solid rgba(65, 88, 80, 0.14);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(16px);
+}
+
+.mode-chip,
+.context-chip {
+  min-height: 28px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.mode-chip {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  color: #fffaf4;
+}
+
+.context-chip {
+  background: rgba(31, 98, 89, 0.08);
+  color: var(--text-soft);
+}
+
+.ghost-toggle {
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 251, 246, 0.8);
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  color: var(--text-soft);
+}
+
+.ghost-toggle.active {
+  color: var(--brand);
+  border-color: rgba(31, 98, 89, 0.2);
+}
+
+.voice-banner {
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(222, 239, 233, 0.72), rgba(255, 251, 246, 0.78));
+  border: 1px solid rgba(31, 98, 89, 0.12);
+}
+
+.composer-main :deep(.el-textarea__inner) {
+  min-height: 92px !important;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border-color: rgba(65, 88, 80, 0.14);
+  background: rgba(255, 251, 246, 0.86);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.75;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.composer-main :deep(.el-textarea__inner:focus) {
+  border-color: rgba(31, 98, 89, 0.34);
+  box-shadow: 0 0 0 4px rgba(31, 98, 89, 0.08);
+}
+
+.composer-actions {
+  gap: 10px;
+}
+
+.action-circle,
+.clear-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+}
+
+.send-button {
+  min-width: 104px;
+  height: 46px;
+  border-radius: 16px;
+  font-size: 14px;
+  background: linear-gradient(135deg, var(--accent) 0%, #8b4f22 100%);
+  border-color: transparent;
+  box-shadow: 0 16px 28px rgba(180, 107, 49, 0.2);
+}
+
+.settings-panel {
+  margin-top: 2px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(65, 88, 80, 0.08);
+}
+
+.settings-header {
+  padding: 2px 4px 14px;
+}
+
+.settings-title {
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  font-size: 14px;
+}
+
+.settings-collapse-btn {
+  border-radius: 999px;
+  background: rgba(31, 98, 89, 0.08);
+  color: var(--brand);
+}
+
+.setting-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 251, 246, 0.8);
+  border: 1px solid rgba(65, 88, 80, 0.1);
+}
+
+.setting-label {
+  color: var(--text);
+}
+
+.setting-card small {
+  color: var(--text-faint);
+}
+
+@media (max-width: 960px) {
+  .input-shell {
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .input-meta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .meta-primary,
+  .meta-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .composer-actions {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .send-button {
+    flex: 1;
   }
 }
 </style>

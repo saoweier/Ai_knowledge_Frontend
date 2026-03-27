@@ -1,29 +1,73 @@
 <template>
   <div class="user-management-layout">
-    <!-- 左侧工业风装饰 -->
+    <!-- 左侧 AI 知识库品牌展示 -->
     <div class="left-panel">
-      <div class="gear gear-1" />
-      <div class="gear gear-2" />
-      <div class="gear gear-3" />
+      <!-- 背景装饰 -->
+      <div class="bg-decoration">
+        <div class="gradient-orb orb-1" />
+        <div class="gradient-orb orb-2" />
+        <div class="grid-pattern" />
+      </div>
+      
       <div class="brand-content">
+        <!-- Logo区域 -->
+        <div class="logo-section">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+        
         <h1 class="brand-title">
           用户管理系统
         </h1>
         <p class="brand-sub">
-          User Management Platform
+          User Management System
         </p>
+        
+        <!-- 功能特性 -->
         <div class="features">
           <div class="feature-item">
-            <span class="feature-icon">👥</span>
-            <span>用户权限管理</span>
+            <div class="feature-icon-wrapper">
+              <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h4>用户权限管理</h4>
+              <p>灵活的权限控制体系</p>
+            </div>
           </div>
+          
           <div class="feature-item">
-            <span class="feature-icon">🔐</span>
-            <span>密码安全管控</span>
+            <div class="feature-icon-wrapper">
+              <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h4>密码安全管控</h4>
+              <p>安全的密码策略管理</p>
+            </div>
           </div>
+          
           <div class="feature-item">
-            <span class="feature-icon">⚙️</span>
-            <span>系统配置管理</span>
+            <div class="feature-icon-wrapper">
+              <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h4>系统配置管理</h4>
+              <p>个性化的系统设置</p>
+            </div>
           </div>
         </div>
       </div>
@@ -40,7 +84,41 @@
             :class="['tab-btn', { 'active': activeTab === tab.key }]"
             @click="switchTab(tab.key)"
           >
-            <span class="tab-icon">{{ tab.icon }}</span>
+            <svg
+              v-if="tab.key === 'register'"
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="8.5" cy="7" r="4"/>
+              <line x1="20" y1="8" x2="20" y2="14"/>
+              <line x1="23" y1="11" x2="17" y2="11"/>
+            </svg>
+            <svg
+              v-else-if="tab.key === 'change'"
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg
+              v-else
+              class="tab-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
             <span>{{ tab.label }}</span>
           </button>
         </div>
@@ -66,7 +144,10 @@
             <div class="field">
               <label for="reg-username">用户名</label>
               <div class="input-wrapper">
-                <span class="input-icon">👤</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
                 <input 
                   id="reg-username"
                   v-model="registerForm.username" 
@@ -86,7 +167,10 @@
             <div class="field">
               <label for="reg-password">密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="reg-password"
                   v-model="registerForm.password" 
@@ -101,7 +185,14 @@
                   class="toggle-password" 
                   @click="registerForm.showPassword = !registerForm.showPassword"
                 >
-                  {{ registerForm.showPassword ? '👁️' : '👁️‍🗨️' }}
+                  <svg v-if="!registerForm.showPassword" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
                 </button>
               </div>
               <span
@@ -113,7 +204,10 @@
             <div class="field">
               <label for="reg-confirm-password">确认密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="reg-confirm-password"
                   v-model="registerForm.confirmPassword" 
@@ -136,11 +230,12 @@
                   v-model="registerForm.isAdmin"
                   type="checkbox"
                 >
-                <span class="checkmark" />
-                <span class="checkbox-label">
-                  <span class="role-icon">👨‍💼</span>
-                  管理员权限
+                <span class="custom-checkbox">
+                  <svg class="checkmark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
                 </span>
+                <span class="checkbox-label">管理员权限</span>
               </label>
             </div>
 
@@ -183,7 +278,10 @@
             <div class="field">
               <label for="new-password">新密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="new-password"
                   v-model="changeForm.newPassword" 
@@ -198,7 +296,14 @@
                   class="toggle-password" 
                   @click="changeForm.showPassword = !changeForm.showPassword"
                 >
-                  {{ changeForm.showPassword ? '👁️' : '👁️‍🗨️' }}
+                  <svg v-if="!changeForm.showPassword" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
                 </button>
               </div>
               <span
@@ -210,7 +315,10 @@
             <div class="field">
               <label for="change-confirm-password">确认新密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="change-confirm-password"
                   v-model="changeForm.confirmPassword" 
@@ -266,7 +374,10 @@
             <div class="field">
               <label for="reset-username">目标用户名</label>
               <div class="input-wrapper">
-                <span class="input-icon">👤</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
                 <input 
                   id="reset-username"
                   v-model="resetForm.username" 
@@ -286,7 +397,10 @@
             <div class="field">
               <label for="reset-new-password">新密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="reset-new-password"
                   v-model="resetForm.newPassword" 
@@ -301,7 +415,14 @@
                   class="toggle-password" 
                   @click="resetForm.showPassword = !resetForm.showPassword"
                 >
-                  {{ resetForm.showPassword ? '👁️' : '👁️‍🗨️' }}
+                  <svg v-if="!resetForm.showPassword" class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg v-else class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
                 </button>
               </div>
               <span
@@ -313,7 +434,10 @@
             <div class="field">
               <label for="reset-confirm-password">确认新密码</label>
               <div class="input-wrapper">
-                <span class="input-icon">🔒</span>
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <input 
                   id="reset-confirm-password"
                   v-model="resetForm.confirmPassword" 
@@ -367,15 +491,29 @@
       v-if="message.show"
       :class="['message', message.type]"
     >
-      <span class="message-icon">
-        {{ message.type === 'success' ? '✅' : message.type === 'error' ? '❌' : 'ℹ️' }}
-      </span>
+      <svg v-if="message.type === 'success'" class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+      <svg v-else-if="message.type === 'error'" class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="15" y1="9" x2="9" y2="15"/>
+        <line x1="9" y1="9" x2="15" y2="15"/>
+      </svg>
+      <svg v-else class="message-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="16" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12.01" y2="8"/>
+      </svg>
       <span>{{ message.text }}</span>
       <button
         class="message-close"
         @click="hideMessage"
       >
-        ×
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
       </button>
     </div>
   </div>
@@ -396,9 +534,9 @@ if (!store.token) {
 
 // 标签页配置
 const tabs = [
-  { key: 'register', label: '新增用户', icon: '👥' },
-  { key: 'change', label: '修改密码', icon: '🔒' },
-  { key: 'reset', label: '重设密码', icon: '🔧' }
+  { key: 'register', label: '新增用户' },
+  { key: 'change', label: '修改密码' },
+  { key: 'reset', label: '重设密码' }
 ]
 
 const activeTab = ref('register')
@@ -765,82 +903,235 @@ function showHelp() {
 </script>
 
 <style scoped>
-/* 继承登录页面的基础样式，这里只写额外的样式 */
+/* ====================================
+   AI 知识库风格用户管理页面
+   Fonts: Space Grotesk + DM Sans
+   Color: Blue (#2563EB) based theme
+==================================== */
+
 .user-management-layout {
   min-height: 100vh;
   display: flex;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  font-family: 'Arial', sans-serif;
+  background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ========================
+   左侧展示区 (AI 主题)
+========================== */
 .left-panel {
   flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  padding: 60px;
   position: relative;
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e3a5f 50%, #0f172a 100%);
   overflow: hidden;
 }
 
+/* 背景装饰 */
+.bg-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gradient-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+}
+
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, #3b82f6 0%, transparent 70%);
+  top: -100px;
+  left: -100px;
+}
+
+.orb-2 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, #8b5cf6 0%, transparent 70%);
+  bottom: -50px;
+  right: -50px;
+}
+
+.grid-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* 品牌内容 */
+.brand-content {
+  position: relative;
+  z-index: 1;
+  max-width: 480px;
+}
+
+.logo-section {
+  margin-bottom: 32px;
+}
+
+.logo-icon {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+}
+
+.logo-icon svg {
+  width: 32px;
+  height: 32px;
+  color: white;
+}
+
+.brand-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.brand-sub {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0 0 40px 0;
+  font-weight: 400;
+}
+
+/* 功能特性 */
+.features {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  animation: fadeUp 0.6s ease forwards;
+  opacity: 0;
+}
+
+.feature-item:nth-child(1) { animation-delay: 0.1s; }
+.feature-item:nth-child(2) { animation-delay: 0.2s; }
+.feature-item:nth-child(3) { animation-delay: 0.3s; }
+
+.feature-icon-wrapper {
+  background: rgba(37, 99, 235, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  padding: 10px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.feature-item:hover .feature-icon-wrapper {
+  background: rgba(37, 99, 235, 0.25);
+  transform: translateX(4px);
+}
+
+.feature-icon {
+  width: 22px;
+  height: 22px;
+  color: #60a5fa;
+}
+
+.feature-text h4 {
+  margin: 0 0 4px 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.feature-text p {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.5;
+}
+
+/* =====================
+   右侧功能卡片
+======================== */
 .right-panel {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
+  padding: 40px;
+  background: #ffffff;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 20px;
-  padding: 2rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #ffffff;
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
+  padding: 32px;
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
 
 /* 标签页样式 */
 .tab-header {
   display: flex;
-  background: #f8f9fa;
+  background: #f8fafc;
   border-radius: 12px;
-  padding: 0.5rem;
-  margin-bottom: 2rem;
-  gap: 0.25rem;
+  padding: 4px;
+  margin-bottom: 24px;
+  gap: 4px;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 0.75rem 1rem;
+  padding: 10px 12px;
   border: none;
   background: transparent;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.9rem;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 500;
-  color: #6c757d;
+  color: #64748b;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .tab-btn:hover {
-  background: rgba(102, 126, 234, 0.1);
-  color: #667eea;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .tab-btn.active {
-  background: #667eea;
+  background: #2563eb;
   color: white;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
 }
 
 .tab-icon {
-  font-size: 1rem;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
 .tab-content {
@@ -852,23 +1143,28 @@ function showHelp() {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* 表单样式 */
 .form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 18px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 6px;
 }
 
-label {
+.field label {
   font-weight: 600;
-  color: #2d3748;
-  font-size: 0.9rem;
+  color: #374151;
+  font-size: 14px;
 }
 
 .input-wrapper {
@@ -879,125 +1175,154 @@ label {
 
 .input-icon {
   position: absolute;
-  left: 1rem;
+  left: 14px;
+  width: 20px;
+  height: 20px;
+  color: #94a3b8;
   z-index: 2;
-  font-size: 1.1rem;
+  pointer-events: none;
 }
 
-input {
+.input-wrapper input {
   width: 100%;
-  padding: 1rem 1rem 1rem 3rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: white;
+  padding: 12px 14px 12px 44px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 15px;
+  font-family: 'DM Sans', sans-serif;
+  transition: all 0.2s ease;
+  background: #f8fafc;
+  color: #1e293b;
 }
 
-input:focus {
+.input-wrapper input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  background: #ffffff;
 }
 
-input.error {
-  border-color: #e53e3e;
-  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1);
+.input-wrapper input.error {
+  border-color: #ef4444;
+}
+
+.input-wrapper input.error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .toggle-password {
   position: absolute;
-  right: 1rem;
+  right: 12px;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0.25rem;
-  border-radius: 4px;
-  transition: background-color 0.2s ease;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
 }
 
 .toggle-password:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  opacity: 1;
+}
+
+.eye-icon {
+  width: 20px;
+  height: 20px;
+  color: #64748b;
 }
 
 .error-text {
-  color: #e53e3e;
-  font-size: 0.85rem;
-  margin-top: 0.25rem;
+  color: #ef4444;
+  font-size: 13px;
+  margin-top: 2px;
 }
 
 /* 复选框样式 */
 .checkbox-wrapper {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 10px;
   cursor: pointer;
-  padding: 0.5rem 0;
+  padding: 4px 0;
 }
 
 .checkbox-wrapper input[type="checkbox"] {
-  display: none;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.custom-checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 4px;
+  border: 1.6px solid #cbd5e1;
+  background: #ffffff;
+  transition: all 0.15s ease;
 }
 
 .checkmark {
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e2e8f0;
-  border-radius: 4px;
-  position: relative;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.15s ease;
+  stroke: #ffffff;
 }
 
-.checkbox-wrapper input[type="checkbox"]:checked + .checkmark {
-  background: #667eea;
-  border-color: #667eea;
+.checkbox-wrapper input[type="checkbox"]:checked + .custom-checkbox {
+  background: #2563eb;
+  border-color: #2563eb;
 }
 
-.checkbox-wrapper input[type="checkbox"]:checked + .checkmark:after {
-  content: "✓";
-  position: absolute;
-  color: white;
-  font-size: 14px;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+.checkbox-wrapper input[type="checkbox"]:checked + .custom-checkbox .checkmark {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.checkbox-wrapper input[type="checkbox"]:focus + .custom-checkbox {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
 .checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   font-weight: 500;
-}
-
-.role-icon {
-  font-size: 1.1rem;
+  color: #374151;
+  font-size: 14px;
 }
 
 /* 按钮样式 */
 .btn {
   width: 100%;
-  padding: 1rem 2rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 13px 24px;
+  background: #2563eb;
   color: white;
   border: none;
-  border-radius: 12px;
-  font-size: 1rem;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  transition: all 0.2s ease;
+  font-family: 'DM Sans', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
 }
 
-.btn:active {
+.btn:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -1007,60 +1332,303 @@ input.error {
 }
 
 .btn.btn-warning {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  background: #f59e0b;
 }
 
 .btn.btn-warning:hover:not(:disabled) {
-  box-shadow: 0 10px 25px rgba(245, 87, 108, 0.3);
+  background: #d97706;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
 }
 
 .loading-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
 .spinner {
-  width: 1rem;
-  height: 1rem;
+  width: 18px;
+  height: 18px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top: 2px solid white;
+  border-top-color: #ffffff;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  to { transform: rotate(360deg); }
 }
 
-/* 工业风装饰 */
-.gear {
-  position: absolute;
-  border: 3px solid rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  animation: rotate 20s linear infinite;
+/* 页尾链接 */
+.footer-links {
+  margin-top: 24px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  font-size: 14px;
 }
 
-.gear-1 {
-  width: 100px;
-  height: 100px;
-  top: 20%;
-  left: 15
+.footer-links a {
+  color: #64748b;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  cursor: pointer;
 }
-.gear-2 {
-  width: 150px;
-  height: 150px;
-  top: 50%;
-  left: 5%;
-  animation-duration: 30s;
+
+.footer-links a:hover {
+  color: #2563eb;
 }
-.gear-3 {
-  width: 80px;
-  height: 80px;
-  bottom: 20%;
-  left: 25%;
-  animation-duration: 15s;
+
+.separator {
+  color: #cbd5e1;
+}
+
+/* 消息提示 */
+.message {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  background: #ffffff;
+  padding: 14px 18px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  animation: slideIn 0.3s ease;
+  font-size: 14px;
+  max-width: 360px;
+}
+
+.message.success {
+  border-left: 4px solid #16a34a;
+}
+
+.message.error {
+  border-left: 4px solid #ef4444;
+}
+
+.message.info {
+  border-left: 4px solid #2563eb;
+}
+
+.message-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.message.success .message-icon { color: #16a34a; }
+.message.error .message-icon { color: #ef4444; }
+.message.info .message-icon { color: #2563eb; }
+
+.message-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  margin-left: auto;
+}
+
+.message-close:hover {
+  opacity: 1;
+}
+
+.message-close svg {
+  width: 16px;
+  height: 16px;
+  color: #64748b;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ======================
+   响应式设计
+======================== */
+
+/* 平板 (隐藏左侧面板) */
+@media (max-width: 1024px) {
+  .left-panel {
+    display: none;
+  }
+  
+  .right-panel {
+    background: linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%);
+    min-height: 100vh;
+  }
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+  .user-management-layout {
+    overflow-y: auto;
+  }
+  
+  .right-panel {
+    padding: 24px 20px;
+    min-height: 100vh;
+    align-items: flex-start;
+    padding-top: 40px;
+  }
+  
+  .card {
+    padding: 24px 20px;
+    box-shadow: none;
+  }
+  
+  .tab-btn {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  
+  .tab-icon {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .message {
+    left: 20px;
+    right: 20px;
+    max-width: none;
+  }
+}
+
+.user-management-layout {
+  background:
+    radial-gradient(circle at top left, rgba(31, 98, 89, 0.1), transparent 24%),
+    radial-gradient(circle at bottom right, rgba(180, 107, 49, 0.1), transparent 20%),
+    linear-gradient(180deg, #f4efe6 0%, #f7f3ec 100%);
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+.left-panel {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(180, 107, 49, 0.16), transparent 22%),
+    linear-gradient(160deg, #143934 0%, #102824 52%, #1d4f47 100%);
+}
+
+.orb-1 {
+  background: radial-gradient(circle, rgba(180, 107, 49, 0.7) 0%, transparent 68%);
+}
+
+.orb-2 {
+  background: radial-gradient(circle, rgba(31, 98, 89, 0.56) 0%, transparent 70%);
+}
+
+.logo-icon,
+.feature-icon-wrapper {
+  background: rgba(255, 250, 244, 0.1);
+  border-color: rgba(255, 233, 207, 0.2);
+  box-shadow: none;
+}
+
+.logo-icon svg,
+.feature-icon {
+  color: #f2c792;
+}
+
+.brand-title,
+.feature-text h4,
+.card-title {
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+}
+
+.brand-sub,
+.feature-text p {
+  color: rgba(255, 245, 236, 0.68);
+}
+
+.right-panel {
+  background: transparent;
+}
+
+.card {
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(180, 107, 49, 0.14), transparent 30%),
+    linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(246, 240, 232, 0.92));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-lg);
+}
+
+.tab-header {
+  background: rgba(255, 251, 246, 0.68);
+  border: 1px solid rgba(65, 88, 80, 0.08);
+}
+
+.tab-btn {
+  color: var(--text-soft);
+  border-radius: 10px;
+}
+
+.tab-btn:hover {
+  background: rgba(31, 98, 89, 0.08);
+  color: var(--brand);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  box-shadow: 0 12px 24px rgba(31, 98, 89, 0.18);
+}
+
+.field label,
+.checkbox-label {
+  color: var(--text);
+}
+
+.input-wrapper input {
+  background: rgba(255, 251, 246, 0.82);
+  border-color: rgba(65, 88, 80, 0.12);
+  border-radius: 14px;
+}
+
+.input-wrapper input:focus {
+  border-color: rgba(31, 98, 89, 0.3);
+  box-shadow: 0 0 0 4px rgba(31, 98, 89, 0.08);
+}
+
+.btn {
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+}
+
+.btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--brand-strong) 0%, #113833 100%);
+  box-shadow: 0 16px 28px rgba(31, 98, 89, 0.18);
+}
+
+.btn.btn-warning {
+  background: linear-gradient(135deg, var(--accent) 0%, #8b4f22 100%);
+}
+
+.btn.btn-warning:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9a5929 0%, #7c431b 100%);
+  box-shadow: 0 16px 28px rgba(180, 107, 49, 0.18);
+}
+
+.footer-links a:hover {
+  color: var(--brand);
+}
+
+.message {
+  background: rgba(255, 251, 246, 0.96);
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-md);
 }
 </style>

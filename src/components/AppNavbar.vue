@@ -8,64 +8,167 @@
           class="logo"
           alt="Logo"
         >
-        <span class="brand-text">设备智能专家</span>
+        <span class="brand-text">AI知识库专家</span>
       </div>
 
+      <!-- 汉堡菜单按钮 (移动端) -->
+      <button
+        class="hamburger-btn"
+        :class="{ 'is-active': mobileMenuOpen }"
+        @click="toggleMobileMenu"
+        aria-label="菜单"
+      >
+        <svg
+          class="hamburger-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            v-if="!mobileMenuOpen"
+            d="M4 6h16M4 12h16M4 18h16"
+            stroke-linecap="round"
+          />
+          <path
+            v-else
+            d="M6 18L18 6M6 6l12 12"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+
       <!-- 中间导航链接 -->
-      <div class="navbar-links">
+      <div
+        class="navbar-links"
+        :class="{ 'is-open': mobileMenuOpen }"
+      >
         <router-link
           to="/chatFlow"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">🔄</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>故障问答</span>
         </router-link>
 
         <router-link
           to="/"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">💬</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 0 1-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>信息咨询</span>
         </router-link>
         
         <router-link
           to="/usermanage"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">👥</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>用户管理</span>
         </router-link>
         
         <router-link
           to="/knowlegde"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">📚</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>知识库</span>
         </router-link>
         
         <router-link
           to="/knowgraph"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">🕸️</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="12" cy="12" r="3"/>
+            <circle cx="5" cy="6" r="2"/>
+            <circle cx="19" cy="6" r="2"/>
+            <circle cx="5" cy="18" r="2"/>
+            <circle cx="19" cy="18" r="2"/>
+            <path d="M7 7l3 3M14 14l3 3M7 17l3-3M14 10l3-3" stroke-linecap="round"/>
+          </svg>
           <span>知识图谱</span>
         </router-link>
 
         <router-link
           to="/knowledge-extractor"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">🧪</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 1 1 7.072 0l-.548.547A3.374 3.374 0 0 0 14 18.469V19a2 2 0 1 1-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
           <span>知识提炼</span>
         </router-link>
 
         <router-link
           to="/equipment-maintenance"
           class="nav-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">📋</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke-linecap="round" stroke-linejoin="round"/>
+            <rect x="9" y="3" width="6" height="4" rx="1"/>
+            <path d="M9 12h6M9 16h6" stroke-linecap="round"/>
+          </svg>
           <span>维修台账</span>
         </router-link>
 
@@ -74,8 +177,18 @@
           v-if="user.isAdmin"
           to="/debug"
           class="nav-link admin-link"
+          @click="closeMobileMenu"
         >
-          <span class="nav-icon">🔧</span>
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
           <span>调试</span>
         </router-link>
       </div>
@@ -96,7 +209,15 @@
               class="message-badge"
             >
               <div class="message-btn">
-                <span class="message-icon">🔔</span>
+                <svg
+                  class="message-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
               </div>
             </el-badge>
           </template>
@@ -106,7 +227,15 @@
               v-if="totalMessageCount === 0"
               class="message-empty"
             >
-              <span class="empty-icon">📭</span>
+              <svg
+                class="empty-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M3 8l7.89 5.26a2 2 0 0 0 2.22 0L21 8M5 19h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
               <p>暂无消息提醒</p>
             </div>
             <div
@@ -121,7 +250,7 @@
               >
                 <div class="message-header">
                   <span :class="['message-type', item.typeClass]">
-                    {{ item.typeIcon }} {{ item.type }}
+                    {{ item.type }}
                   </span>
                   <span class="message-time">{{ item.time }}</span>
                 </div>
@@ -147,24 +276,60 @@
                 {{ getUserInitial }}
               </div>
               <span class="username">{{ displayUsername }}</span>
-              <span class="dropdown-arrow">▼</span>
+              <svg
+                class="dropdown-arrow"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="profile">
-                <span class="dropdown-icon">👤</span>
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
                 <span>个人信息</span>
               </el-dropdown-item>
               <el-dropdown-item command="password">
-                <span class="dropdown-icon">🔒</span>
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <span>修改密码</span>
               </el-dropdown-item>
               <el-dropdown-item
                 v-if="user.isAdmin"
                 command="manage"
               >
-                <span class="dropdown-icon">👥</span>
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
                 <span>用户管理</span>
               </el-dropdown-item>
               <el-dropdown-item
@@ -172,7 +337,17 @@
                 command="logout"
                 class="logout-item"
               >
-                <span class="dropdown-icon">🚪</span>
+                <svg
+                  class="dropdown-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" stroke-linecap="round" stroke-linejoin="round"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
                 <span>退出登录</span>
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -180,17 +355,35 @@
         </el-dropdown>
       </div>
     </div>
+
+    <!-- 移动端菜单遮罩 -->
+    <div
+      v-if="mobileMenuOpen"
+      class="mobile-overlay"
+      @click="closeMobileMenu"
+    />
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const user = useUserStore()
+
+// 移动端菜单状态
+const mobileMenuOpen = ref(false)
+
+function toggleMobileMenu() {
+  mobileMenuOpen.value = !mobileMenuOpen.value
+}
+
+function closeMobileMenu() {
+  mobileMenuOpen.value = false
+}
 
 const displayUsername = computed(() => {
   return user.userInfo?.username || '用户'
@@ -317,15 +510,22 @@ function handleUserCommand(command) {
 </script>
 
 <style scoped>
+/* ====================================
+   AI 知识库风格导航栏
+   Fonts: Space Grotesk + DM Sans
+   Color: Blue (#2563EB) based theme
+==================================== */
+
 .navbar {
   height: 64px;
-  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-  border-bottom: 1px solid #e5e7eb;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   position: sticky;
   top: 0;
-  z-index: 100;
-  backdrop-filter: blur(10px);
+  z-index: 1000;
+  backdrop-filter: blur(12px);
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .navbar-container {
@@ -335,7 +535,7 @@ function handleUserCommand(command) {
   padding: 0 32px;
   display: flex;
   align-items: center;
-  gap: 40px;
+  gap: 32px;
 }
 
 /* 品牌区 */
@@ -344,7 +544,8 @@ function handleUserCommand(command) {
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  transition: transform 0.3s;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
 }
 
 .navbar-brand:hover {
@@ -352,103 +553,117 @@ function handleUserCommand(command) {
 }
 
 .logo {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 10px;
   object-fit: cover;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
 .brand-text {
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
   font-size: 18px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #1e293b;
   white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+/* 汉堡菜单按钮 */
+.hamburger-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.hamburger-btn:hover {
+  background: #f1f5f9;
+}
+
+.hamburger-btn.is-active {
+  background: #eff6ff;
+}
+
+.hamburger-icon {
+  width: 22px;
+  height: 22px;
+  color: #475569;
+  transition: color 0.2s ease;
+}
+
+.hamburger-btn.is-active .hamburger-icon {
+  color: #2563eb;
 }
 
 /* 导航链接区 */
 .navbar-links {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex: 1;
 }
 
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 16px;
-  border-radius: 10px;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #4b5563;
+  color: #64748b;
   text-decoration: none;
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
-}
-
-.nav-link::before {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 0;
-  height: 2px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  transform: translateX(-50%);
-  transition: width 0.3s ease;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
-  color: #667eea;
-  background: rgba(102, 126, 234, 0.08);
-}
-
-.nav-link:hover::before {
-  width: 80%;
+  color: #2563eb;
+  background: #eff6ff;
 }
 
 .nav-link.router-link-active {
-  color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.12), rgba(118, 75, 162, 0.12));
+  color: #2563eb;
+  background: #eff6ff;
   font-weight: 600;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
-}
-
-.nav-link.router-link-active::before {
-  width: 80%;
 }
 
 .nav-icon {
-  font-size: 16px;
-  transition: transform 0.3s;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
 }
 
 .nav-link:hover .nav-icon {
-  transform: scale(1.15);
+  transform: scale(1.1);
 }
 
 .admin-link {
   margin-left: auto;
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  border: 1px solid rgba(239, 68, 68, 0.25);
   background: rgba(239, 68, 68, 0.05);
 }
 
 .admin-link:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.5);
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.4);
 }
 
 .admin-link.router-link-active {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.15);
-  border-color: #ef4444;
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: #dc2626;
 }
 
 /* 用户区 */
@@ -456,42 +671,43 @@ function handleUserCommand(command) {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .message-badge {
   cursor: pointer;
-  transition: all 0.3s;
 }
 
 .message-badge:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .message-btn {
   width: 40px;
   height: 40px;
   border-radius: 10px;
-  background: rgba(239, 68, 68, 0.08);
+  background: #fef2f2;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s;
-  color: #ef4444;
+  transition: all 0.2s ease;
+  color: #dc2626;
 }
 
 .message-btn:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: #fee2e2;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
 }
 
 .message-icon {
-  font-size: 18px;
+  width: 20px;
+  height: 20px;
 }
 
 .message-content {
-  max-height: 500px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -501,12 +717,14 @@ function handleUserCommand(command) {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  color: #9ca3af;
+  color: #94a3b8;
 }
 
 .empty-icon {
-  font-size: 48px;
+  width: 48px;
+  height: 48px;
   margin-bottom: 12px;
+  color: #cbd5e1;
 }
 
 .message-empty p {
@@ -517,31 +735,31 @@ function handleUserCommand(command) {
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 8px;
 }
 
 .message-item {
   padding: 12px;
   border-radius: 10px;
-  background: #f8f9fa;
+  background: #f8fafc;
   border-left: 4px solid;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: all 0.2s ease;
 }
 
 .message-item:hover {
-  background: #edf2f7;
+  background: #f1f5f9;
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .message-item.warning {
-  border-left-color: #ed8936;
+  border-left-color: #f59e0b;
 }
 
 .message-item.danger {
-  border-left-color: #e53e3e;
+  border-left-color: #ef4444;
 }
 
 .message-item.info {
@@ -552,67 +770,64 @@ function handleUserCommand(command) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .message-type {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 4px 8px;
+  padding: 3px 8px;
   border-radius: 6px;
 }
 
 .message-type.warning {
-  color: #c05621;
-  background: #fffaf0;
+  color: #b45309;
+  background: #fef3c7;
 }
 
 .message-type.danger {
-  color: #c53030;
-  background: #fff5f5;
+  color: #b91c1c;
+  background: #fef2f2;
 }
 
 .message-type.info {
-  color: #2c5282;
-  background: #ebf8ff;
+  color: #1d4ed8;
+  background: #eff6ff;
 }
 
 .message-time {
   font-size: 12px;
-  color: #a0aec0;
+  color: #94a3b8;
 }
 
 .message-body p {
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
   font-size: 13px;
-  color: #4a5568;
+  color: #475569;
   line-height: 1.5;
 }
 
 .message-status {
   display: inline-block;
-  font-size: 12px;
-  padding: 2px 8px;
+  font-size: 11px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
 }
 
 .message-status.pending {
-  color: #c05621;
-  background: #fffaf0;
+  color: #b45309;
+  background: #fef3c7;
 }
 
 .message-status.urgent {
-  color: #c53030;
-  background: #fff5f5;
+  color: #b91c1c;
+  background: #fef2f2;
 }
 
 .message-status.processing {
-  color: #2c5282;
-  background: #ebf8ff;
+  color: #1d4ed8;
+  background: #eff6ff;
 }
 
 .user-dropdown {
@@ -622,47 +837,51 @@ function handleUserCommand(command) {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: rgba(102, 126, 234, 0.08);
-  border-radius: 12px;
-  transition: all 0.3s;
+  gap: 10px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  border: 1px solid #e2e8f0;
 }
 
 .user-info:hover {
-  background: rgba(102, 126, 234, 0.15);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .user-avatar {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-family: 'Space Grotesk', sans-serif;
   font-weight: 700;
-  font-size: 16px;
-  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
 }
 
 .username {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
-  max-width: 120px;
+  color: #334155;
+  max-width: 100px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .dropdown-arrow {
-  font-size: 10px;
-  color: #667eea;
-  transition: transform 0.3s;
+  width: 14px;
+  height: 14px;
+  color: #64748b;
+  transition: transform 0.2s ease;
 }
 
 .user-info:hover .dropdown-arrow {
@@ -672,23 +891,26 @@ function handleUserCommand(command) {
 .el-dropdown-menu {
   padding: 8px;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  border: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  border: 1px solid #e2e8f0;
 }
 
 .el-dropdown-menu__item {
-  padding: 10px 16px;
+  padding: 10px 14px;
   border-radius: 8px;
-  margin-bottom: 4px;
-  transition: all 0.3s;
+  margin-bottom: 2px;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  font-size: 14px;
+  color: #475569;
+  cursor: pointer;
 }
 
 .el-dropdown-menu__item:hover {
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-  color: #667eea;
+  background: #eff6ff;
+  color: #2563eb;
 }
 
 .el-dropdown-menu__item:last-child {
@@ -696,67 +918,70 @@ function handleUserCommand(command) {
 }
 
 .el-dropdown-menu__item.is-divided {
-  margin-top: 8px;
+  margin-top: 6px;
   padding-top: 10px;
   border-top: 1px solid #e2e8f0;
 }
 
 .logout-item {
-  color: #e53e3e;
+  color: #dc2626;
 }
 
 .logout-item:hover {
-  color: #e53e3e !important;
-  background: rgba(229, 62, 62, 0.1) !important;
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
 }
 
 .dropdown-icon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
 
-/* 响应式设计 */
+/* 移动端菜单遮罩 */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ====================================
+   响应式设计
+==================================== */
+
+/* 大屏幕 */
 @media (max-width: 1200px) {
   .navbar-container {
     padding: 0 20px;
-    gap: 24px;
-  }
-
-  .navbar-links {
-    gap: 4px;
+    gap: 20px;
   }
 
   .nav-link {
-    padding: 8px 12px;
+    padding: 8px 10px;
     font-size: 13px;
   }
 
   .nav-icon {
-    font-size: 14px;
+    width: 16px;
+    height: 16px;
   }
 }
 
-@media (max-width: 768px) {
-  .navbar {
-    height: 56px;
-  }
-
-  .navbar-container {
-    gap: 16px;
-  }
-
-  .brand-text {
-    display: none;
-  }
-
+/* 平板 */
+@media (max-width: 1024px) {
   .navbar-links {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .navbar-links::-webkit-scrollbar {
-    display: none;
+    gap: 2px;
   }
 
   .nav-link span:not(.nav-icon) {
@@ -764,7 +989,80 @@ function handleUserCommand(command) {
   }
 
   .nav-link {
-    padding: 8px;
+    padding: 8px 10px;
+  }
+}
+
+/* 移动端 */
+@media (max-width: 768px) {
+  .navbar {
+    height: 56px;
+  }
+
+  .navbar-container {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .navbar-links {
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 16px;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-100%);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    z-index: 1000;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+
+  .navbar-links.is-open {
+    transform: translateY(0);
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .mobile-overlay {
+    display: block;
+  }
+
+  .nav-link {
+    padding: 12px 16px;
+    font-size: 15px;
+    border-radius: 8px;
+    background: #f8fafc;
+  }
+
+  .nav-link span:not(.nav-icon) {
+    display: inline;
+  }
+
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .admin-link {
+    margin-left: 0;
+    border: 1px solid #e2e8f0;
+    background: #fef2f2;
   }
 
   .username {
@@ -780,14 +1078,10 @@ function handleUserCommand(command) {
     height: 36px;
   }
 
-  .message-icon {
-    font-size: 16px;
-  }
-
   .user-avatar {
     width: 32px;
     height: 32px;
-    font-size: 14px;
+    font-size: 13px;
   }
 
   .dropdown-arrow {
@@ -795,7 +1089,7 @@ function handleUserCommand(command) {
   }
 }
 
-/* 添加导航栏入场动画 */
+/* 导航栏入场动画 */
 @keyframes navSlideDown {
   from {
     transform: translateY(-100%);
@@ -808,6 +1102,128 @@ function handleUserCommand(command) {
 }
 
 .navbar {
-  animation: navSlideDown 0.5s ease-out;
+  animation: navSlideDown 0.4s ease-out;
+}
+
+.navbar {
+  height: 76px;
+  background: rgba(244, 239, 230, 0.78);
+  border-bottom: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: 0 18px 30px rgba(26, 34, 31, 0.06);
+}
+
+.navbar-container {
+  max-width: 1480px;
+  padding: 0 clamp(16px, 3vw, 32px);
+}
+
+.navbar-brand {
+  gap: 14px;
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  padding: 5px;
+  border-radius: 14px;
+  background: rgba(255, 251, 246, 0.88);
+  box-shadow: 0 14px 26px rgba(31, 98, 89, 0.12);
+}
+
+.brand-text {
+  font-family: 'Sora', 'Noto Sans SC', sans-serif;
+  color: var(--text);
+}
+
+.navbar-links {
+  gap: 8px;
+}
+
+.nav-link {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  color: var(--text-soft);
+}
+
+.nav-link:hover,
+.nav-link.router-link-active {
+  color: var(--brand);
+  background: rgba(31, 98, 89, 0.1);
+}
+
+.admin-link {
+  border-radius: 14px;
+  border-color: rgba(180, 107, 49, 0.28);
+  background: rgba(180, 107, 49, 0.1);
+  color: #8b4f22;
+}
+
+.admin-link:hover,
+.admin-link.router-link-active {
+  color: #8b4f22;
+  background: rgba(180, 107, 49, 0.16);
+  border-color: rgba(180, 107, 49, 0.36);
+}
+
+.message-btn,
+.user-info {
+  background: rgba(255, 251, 246, 0.8);
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.message-btn {
+  color: var(--accent);
+}
+
+.message-btn:hover {
+  background: rgba(244, 228, 211, 0.9);
+  box-shadow: 0 16px 30px rgba(180, 107, 49, 0.14);
+}
+
+.message-item {
+  border-left-width: 3px;
+  border-radius: 14px;
+  background: rgba(255, 251, 246, 0.84);
+}
+
+.user-info {
+  border-radius: 16px;
+}
+
+.user-avatar {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  box-shadow: 0 12px 22px rgba(31, 98, 89, 0.22);
+}
+
+.username {
+  color: var(--text);
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    height: 64px;
+  }
+
+  .navbar-links {
+    top: 64px;
+    padding: 14px;
+    background: rgba(255, 251, 246, 0.96);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-link {
+    min-height: 48px;
+    border-radius: 16px;
+    background: rgba(255, 251, 246, 0.82);
+    border: 1px solid rgba(65, 88, 80, 0.08);
+  }
+
+  .mobile-overlay {
+    top: 64px;
+    background: rgba(26, 34, 31, 0.28);
+    backdrop-filter: blur(2px);
+  }
 }
 </style>
