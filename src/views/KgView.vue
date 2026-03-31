@@ -389,29 +389,52 @@
                   <el-form-item label="属性">
                     <div class="property-list">
                       <div v-for="(prop, index) in editingNode.properties" :key="index" class="property-row">
-                        <el-select v-model="prop.key" filterable allow-create placeholder="属性名" style="width: 120px">
-                          <el-option label="name" value="name" />
-                          <el-option label="description" value="description" />
-                          <el-option label="step_id" value="step_id" />
-                          <el-option label="step_order" value="step_order" />
-                          <el-option label="action" value="action" />
-                          <el-option label="chunk_ids" value="chunk_ids" />
-                          <el-option label="image_path" value="image_path" />
-                        </el-select>
-                        <el-select v-model="prop.type" style="width: 88px">
-                          <el-option label="文本" value="string" />
-                          <el-option label="数组" value="array" />
-                          <el-option label="数字" value="number" />
-                          <el-option label="布尔" value="boolean" />
-                        </el-select>
-                        <el-input v-model="prop.value" style="flex: 1" />
-                        <el-button
-                          :icon="DeleteIcon"
-                          circle
-                          type="danger"
-                          plain
-                          :disabled="editingNode.properties.length === 1"
-                          @click="removeEditingProperty(index)"
+                        <div class="property-row-head">
+                          <el-select
+                            v-model="prop.key"
+                            filterable
+                            allow-create
+                            placeholder="属性名"
+                            class="property-key-select"
+                          >
+                            <el-option label="name" value="name" />
+                            <el-option label="description" value="description" />
+                            <el-option label="step_id" value="step_id" />
+                            <el-option label="step_order" value="step_order" />
+                            <el-option label="action" value="action" />
+                            <el-option label="chunk_ids" value="chunk_ids" />
+                            <el-option label="image_path" value="image_path" />
+                          </el-select>
+                          <el-select v-model="prop.type" class="property-type-select">
+                            <el-option label="文本" value="string" />
+                            <el-option label="数组" value="array" />
+                            <el-option label="数字" value="number" />
+                            <el-option label="布尔" value="boolean" />
+                          </el-select>
+                          <el-button
+                            :icon="DeleteIcon"
+                            circle
+                            type="danger"
+                            plain
+                            class="property-remove-btn"
+                            :disabled="editingNode.properties.length === 1"
+                            @click="removeEditingProperty(index)"
+                          />
+                        </div>
+                        <el-input
+                          v-if="!isLongTextProperty(prop)"
+                          v-model="prop.value"
+                          :placeholder="getPlaceholderByType(prop.type)"
+                          class="property-value-input"
+                        />
+                        <el-input
+                          v-else
+                          v-model="prop.value"
+                          type="textarea"
+                          resize="vertical"
+                          :autosize="{ minRows: 4, maxRows: 10 }"
+                          :placeholder="getPlaceholderByType(prop.type)"
+                          class="property-value-input property-value-textarea"
                         />
                       </div>
                       <el-button :icon="PlusIcon" plain style="width: 100%" @click="addEditingProperty">
@@ -617,6 +640,7 @@ const editingNode = reactive({
   id: '',
   labels: [],
   properties: [],
+  originalPropertyKeys: [],
 });
 
 const newNode = reactive({
@@ -709,6 +733,24 @@ const propertiesToObject = (properties) => {
     }
   });
   return obj;
+};
+
+const getRemovedPropertyKeys = (properties, originalKeys = []) => {
+  const currentKeys = new Set(
+    properties
+      .map((prop) => String(prop.key || '').trim())
+      .filter(Boolean),
+  );
+  return originalKeys.filter((key) => !currentKeys.has(String(key || '').trim()));
+};
+
+const isLongTextProperty = (prop) => {
+  if (!prop || prop.type !== 'string') return false;
+  const value = String(prop.value ?? '');
+  const key = String(prop.key || '').toLowerCase();
+  return ['description', 'content', 'action', 'remark', 'notes'].includes(key)
+    || value.length > 80
+    || value.includes('\n');
 };
 
 const formatValue = (value) => {
@@ -1414,6 +1456,7 @@ const startEditNode = () => {
   isEditingNode.value = true;
   editingNode.id = selectedNode.value.id;
   editingNode.labels = [...selectedNode.value.labels];
+  editingNode.originalPropertyKeys = Object.keys(selectedNode.value.properties || {});
   editingNode.properties = Object.entries(selectedNode.value.properties || {}).map(([key, value]) => ({
     key,
     value: Array.isArray(value) ? JSON.stringify(value) : String(value),
@@ -1435,6 +1478,7 @@ const cancelEditNode = () => {
   editingNode.id = '';
   editingNode.labels = [];
   editingNode.properties = [];
+  editingNode.originalPropertyKeys = [];
 };
 
 const addEditingProperty = () => {
@@ -1449,10 +1493,16 @@ const saveNodeChanges = async () => {
   if (!selectedNode.value || !isConnected.value) return;
   isAdding.value = true;
   try {
+    const properties = propertiesToObject(editingNode.properties);
+    const removedProperties = getRemovedPropertyKeys(
+      editingNode.properties,
+      editingNode.originalPropertyKeys,
+    );
     const resp = await http.post('/kg/nodes/update', {
       id: Number(selectedNode.value.id),
       label: editingNode.labels[0],
-      properties: propertiesToObject(editingNode.properties),
+      properties,
+      removed_properties: removedProperties,
     });
     const updatedNode = toDetailsNode(resp?.data || {});
     selectedNode.value = updatedNode;
@@ -1651,7 +1701,7 @@ onUnmounted(() => {
 <style scoped>
 .kg-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 430px;
+  grid-template-columns: minmax(0, 1fr) 520px;
   min-height: 100%;
   background:
     radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 28%),
@@ -1928,9 +1978,34 @@ onUnmounted(() => {
 }
 
 .property-row {
-  display: flex;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #dbe4ee;
+}
+
+.property-row-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) 110px 40px;
   gap: 8px;
   align-items: center;
+}
+
+.property-key-select,
+.property-type-select,
+.property-value-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.property-remove-btn {
+  justify-self: end;
+}
+
+.property-value-textarea {
+  width: 100%;
 }
 
 .details-block,
@@ -2073,8 +2148,11 @@ onUnmounted(() => {
   .relation-columns,
   .property-row {
     grid-template-columns: 1fr;
-    flex-direction: column;
     align-items: stretch;
+  }
+
+  .property-row-head {
+    grid-template-columns: 1fr;
   }
 
   .kg-stats-grid {

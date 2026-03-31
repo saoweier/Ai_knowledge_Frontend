@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page">
     <el-card>
       <div class="header">
@@ -124,12 +124,46 @@
           width="200"
         />
         <el-table-column
+          label="标题"
+          width="220"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <span>{{ row.payload.title || row.payload.topic || '-' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="标签"
+          width="220"
+        >
+          <template #default="{ row }">
+            <div
+              v-if="(row.payload.tags || []).length"
+              class="tag-cell"
+            >
+              <el-tag
+                v-for="tag in row.payload.tags || []"
+                :key="tag"
+                size="small"
+                effect="light"
+                class="tag-chip"
+              >
+                {{ tag }}
+              </el-tag>
+            </div>
+            <span
+              v-else
+              class="empty-text"
+            >-</span>
+          </template>
+        </el-table-column>
+        <el-table-column
           prop="payload.content"
-          label="内容"
+          label="描述"
           show-overflow-tooltip
         />
         <el-table-column
-          label="多媒体"
+          label="媒体"
           width="100"
         >
           <template #default="{ row }">
@@ -137,7 +171,7 @@
               v-if="row.payload.image_path"
               size="small"
             >
-              有附件
+              已上传
             </el-tag>
           </template>
         </el-table-column>
@@ -266,32 +300,62 @@
           </el-tooltip>
         </el-form-item>
         <el-form-item
+          label="标题"
+          prop="topic"
+        >
+          <el-input
+            v-model="form.topic"
+            placeholder="请输入知识标题或视频名称"
+          />
+        </el-form-item>
+        <el-form-item
+          label="标签"
+          prop="tags"
+        >
+          <el-select
+            v-model="form.tags"
+            multiple
+            filterable
+            allow-create
+            default-first-option
+            placeholder="输入后回车，可添加多个标签"
+            style="width: 100%;"
+          >
+            <el-option
+              v-for="tag in tagOptions"
+              :key="tag"
+              :label="tag"
+              :value="tag"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item
           label="Chunk ID"
           prop="chunk_id"
         >
           <el-input
             v-model="form.chunk_id"
-            placeholder="请输入Chunk ID"
+            placeholder="请输入唯一 Chunk ID"
           />
         </el-form-item>
         <el-form-item
-          label="内容"
+          label="描述"
           prop="content"
         >
           <el-input
             v-model="form.content"
             type="textarea"
             :rows="4"
-            placeholder="请输入内容"
+            placeholder="请输入描述内容"
           />
         </el-form-item>
         <el-form-item
-          label="类别"
+          label="分类"
           prop="category"
         >
           <el-select
             v-model="form.category"
-            placeholder="选择或输入类别"
+            placeholder="请输入知识分类"
             style="width: 100%;"
             filterable
             allow-create
@@ -311,7 +375,7 @@
         >
           <el-input
             v-model="form.image_path"
-            placeholder="上传后自动生成，也可手动输入"
+            placeholder="请输入图片或视频地址，或直接上传文件"
           >
             <template #append>
               <el-upload
@@ -335,7 +399,7 @@
           :loading="loading"
           @click="submitForm"
         >
-          确定
+          保存
         </el-button>
       </template>
     </el-dialog>
@@ -403,10 +467,12 @@ const form = reactive({
 const formRef = ref(null);
 const formRules = {
   chunk_id: [{ required: true, message: '请输入Chunk ID', trigger: 'blur' }],
+  topic: [{ required: true, message: '请输入标题', trigger: 'blur' }],
   content: [{ required: true, message: '请输入内容', trigger: 'blur' }],
 };
 
 const categoryOptions = ref([]);
+const tagOptions = ref([]);
 
 // 导航
 const goToUserManagement = () => {
@@ -419,6 +485,7 @@ const fetchOptions = async () => {
     const response = await http.get('/kb/collections/final_chunk_knowledge_v1.1/stats');
     const fieldStats = response.data.field_stats;
     categoryOptions.value = fieldStats.category?.sample_values || [];
+    tagOptions.value = fieldStats.tags?.sample_values || [];
   } catch (error) {
     ElMessage.error('获取选项失败');
     console.error('请求发生错误:', error);
@@ -429,7 +496,7 @@ const normalizeChunkRows = (points = []) => points.map(item => ({
   ...item,
   payload: {
     ...item.payload,
-    tags: Array.isArray(item.payload?.tags) ? item.payload.tags : [],
+    tags: Array.isArray(item.payload?.tags) ? item.payload.tags.map(tag => String(tag || "").trim()).filter(Boolean) : [],
   }
 }));
 
@@ -563,7 +630,7 @@ const showEditDialog = async (row) => {
     chunk_id: row.payload.chunk_id || '',
     content: row.payload.content || '',
     tags: row.payload.tags || [],
-    topic: row.payload.topic || '',
+    topic: row.payload.title || row.payload.topic || '',
     entity: row.payload.entity || [],
     related_chunks: row.payload.related_chunks || [],
     source_file: row.payload.source_file || '',
@@ -585,7 +652,7 @@ const checkSimilarity = async () => {
         title: form.topic,
         content: form.content,
         image_path: form.image_path,
-        tags: form.tags || [],
+        tags: (form.tags || []).map(tag => String(tag || "").trim()).filter(Boolean),
         metadata: {
           chunk_id: form.chunk_id,
           entity: form.entity || {},
@@ -653,7 +720,7 @@ Chunk ID: ${chunk_id}
       title: form.topic,
       content: form.content,
       image_path: form.image_path,
-      tags: form.tags || [],
+        tags: (form.tags || []).map(tag => String(tag || "").trim()).filter(Boolean),
       metadata: {
         chunk_id: form.chunk_id,
         entity: form.entity || {},
@@ -798,6 +865,20 @@ onMounted(async () => {
 <style scoped>
 .page {
   padding: 20px;
+}
+
+.tag-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  margin: 0;
+}
+
+.empty-text {
+  color: #909399;
 }
 
 .header {
@@ -1032,3 +1113,4 @@ onMounted(async () => {
   }
 }
 </style>
+

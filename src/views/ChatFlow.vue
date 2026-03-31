@@ -30,6 +30,14 @@
             <el-icon><Clock /></el-icon>
             <span class="tab-label">历史问题</span>
           </div>
+          <div 
+            class="tab-btn tab-btn-video" 
+            :class="{ active: activeTab === 'mechanical' }"
+            @click.stop="toggleTab('mechanical')"
+          >
+            <el-icon><InfoFilled /></el-icon>
+            <span class="tab-label">机械拆装</span>
+          </div>
         </div>
 
         <!-- 弹出面板 -->
@@ -52,7 +60,10 @@
               <span>{{ panelTitle }}</span>
             </div>
             
-            <div class="panel-content">
+            <div
+              class="panel-content"
+              :class="{ 'panel-content-mechanical': activeTab === 'mechanical' }"
+            >
               <!-- 常见问题 -->
               <div
                 v-if="activeTab === 'faq'"
@@ -90,7 +101,7 @@
                 </div>
               </div>
 
-              <!-- 历史问题 -->
+              <!-- ???? -->
               <div
                 v-if="activeTab === 'history'"
                 class="history-list"
@@ -104,6 +115,70 @@
                   <span>{{ historyItem.query }}</span>
                   <el-icon><ArrowRight /></el-icon>
                 </div>
+              </div>
+
+              <div
+                v-if="activeTab === 'mechanical'"
+                class="mechanical-panel"
+              >
+
+                <div
+                  v-if="mechanicalVideoLoading"
+                  class="mechanical-empty"
+                >
+                  正在加载机械拆装视频...
+                </div>
+
+                <div
+                  v-else-if="!mechanicalVideoGroups.length"
+                  class="mechanical-empty"
+                >
+                  暂未检测到机械拆装视频。
+                </div>
+
+                <template v-else>
+                  <div class="mechanical-main">
+                    <div class="mechanical-groups">
+                      <section
+                        v-for="group in mechanicalVideoGroups"
+                        :key="group.key"
+                        class="mechanical-group"
+                        :class="{ expanded: expandedMechanicalGroups[group.key] }"
+                      >
+                        <button
+                          type="button"
+                          class="mechanical-group-toggle"
+                          @click="toggleMechanicalGroup(group.key)"
+                        >
+                          <div>
+                            <strong>{{ group.name }}</strong>
+                            <span>{{ group.items.length }} 个视频</span>
+                          </div>
+                          <el-icon :class="{ expanded: expandedMechanicalGroups[group.key] }">
+                            <ArrowRight />
+                          </el-icon>
+                        </button>
+
+                        <div
+                          v-if="expandedMechanicalGroups[group.key]"
+                          class="mechanical-group-items"
+                        >
+                          <button
+                            v-for="item in group.items"
+                            :key="item.id"
+                            type="button"
+                            class="mechanical-video-item"
+                            :class="{ active: selectedMechanicalVideo?.id === item.id }"
+                            @click="selectMechanicalVideo(item)"
+                          >
+                            <span class="mechanical-video-title">{{ item.title }}</span>
+                            <span class="mechanical-video-summary">{{ item.summary }}</span>
+                          </button>
+                        </div>
+                      </section>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -503,6 +578,41 @@
                   </div>
 
                   <div
+                    v-else-if="msg.mechanicalVideo"
+                    class="mechanical-message-card"
+                  >
+                    <div class="mechanical-message-head">
+                      <div>
+                        <p class="mechanical-detail-eyebrow">{{ msg.mechanicalVideo.group_name }} · {{ msg.mechanicalVideo.operation }}</p>
+                        <h3>{{ msg.mechanicalVideo.title }}</h3>
+                      </div>
+                      <span class="mechanical-detail-file">{{ msg.mechanicalVideo.filename }}</span>
+                    </div>
+                    <p class="mechanical-detail-description">
+                      {{ msg.mechanicalVideo.description || '描述待补充' }}
+                    </p>
+                    <div class="mechanical-knowledge">
+                      <span
+                        v-for="point in msg.mechanicalVideo.knowledge_points || []"
+                        :key="point"
+                        class="mechanical-knowledge-chip"
+                      >
+                        {{ point }}
+                      </span>
+                    </div>
+                    <video
+                      :src="msg.mechanicalVideo.video_url"
+                      controls
+                      class="mechanical-video-player mechanical-video-player-preview"
+                      preload="metadata"
+                      title="点击放大播放"
+                      @click="openMechanicalVideoPreview(msg.mechanicalVideo)"
+                    >
+                      您的浏览器不支持视频播放。
+                    </video>
+                  </div>
+
+                  <div
                     v-else-if="msg.results?.length"
                     class="related-knowledge compact-results"
                   >
@@ -704,6 +814,25 @@
             </span>
           </div>
         </div>
+
+        <el-dialog
+          v-model="mechanicalPreviewVisible"
+          width="min(960px, 92vw)"
+          class="mechanical-preview-dialog"
+          destroy-on-close
+          align-center
+        >
+          <video
+            v-if="expandedMechanicalVideo?.video_url"
+            :src="expandedMechanicalVideo.video_url"
+            controls
+            autoplay
+            class="mechanical-preview-player"
+            preload="metadata"
+          >
+            ?????????????
+          </video>
+        </el-dialog>
       </main>
     </div>
   </div>
@@ -878,6 +1007,14 @@ const currentFlowId = ref(null)
 // ----------------------------------------------------------------------------------------------------------
 // 左侧标签状态
 const activeTab = ref(null)
+const mechanicalVideoGroups = ref([])
+const mechanicalVideoLoading = ref(false)
+const selectedMechanicalVideo = ref(null)
+const expandedMechanicalGroups = ref({})
+const BACKEND_MEDIA_PORT = '8093'
+const mechanicalPreviewVisible = ref(false)
+const expandedMechanicalVideo = ref(null)
+
 
 const deviceFaqs = ref([
     '拉丝机触摸屏报PLC异常',
@@ -916,7 +1053,8 @@ const panelTitle = computed(() => {
   const titles = {
     faq: '常见问题',
     error: '故障代码',
-    history: '历史问题'
+    history: '????',
+    mechanical: '机械拆装'
   }
   return titles[activeTab.value] || ''
 })
@@ -924,6 +1062,102 @@ const panelTitle = computed(() => {
 // 方法
 const toggleTab = (tab) => {
   activeTab.value = activeTab.value === tab ? null : tab
+}
+
+function buildExpandedMechanicalGroups(groups) {
+  const nextState = {}
+  groups.forEach((group, index) => {
+    nextState[group.key] = index === 0
+  })
+  return nextState
+}
+
+function getBackendMediaOrigin() {
+  if (typeof window === 'undefined') return ''
+  const { protocol, hostname, port, origin } = window.location
+  if (!port || port === BACKEND_MEDIA_PORT) return origin
+  return `${protocol}//${hostname}:${BACKEND_MEDIA_PORT}`
+}
+
+function normalizeMediaUrl(url) {
+  const value = String(url || '').trim()
+  if (!value) return ''
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith('blob:') || value.startsWith('data:')) {
+    return value
+  }
+
+  const cleanedPath = value.startsWith('/api/uploads/') ? value.replace(/^\/api/, '') : value
+  if (cleanedPath.startsWith('/uploads/')) {
+    return `${getBackendMediaOrigin()}${cleanedPath}`
+  }
+  return cleanedPath
+}
+
+function normalizeMechanicalVideo(item) {
+  if (!item) return null
+  return {
+    ...item,
+    video_url: normalizeMediaUrl(item.video_url)
+  }
+}
+
+function showMechanicalVideoMessage(item) {
+  const normalizedItem = normalizeMechanicalVideo(item)
+  if (!normalizedItem) return
+
+  selectedMechanicalVideo.value = normalizedItem
+  const lastMessage = messages.value[messages.value.length - 1]
+  if (lastMessage?.mechanicalVideo?.id === normalizedItem.id) {
+    lastMessage.mechanicalVideo = normalizedItem
+    lastMessage.time = Date.now()
+  } else {
+    messages.value.push({
+      role: 'assistant',
+      time: Date.now(),
+      text: normalizedItem.description || normalizedItem.title,
+      mechanicalVideo: normalizedItem
+    })
+  }
+  scrollToLatestMessage()
+}
+
+function openMechanicalVideoPreview(item) {
+  expandedMechanicalVideo.value = normalizeMechanicalVideo(item)
+  if (!expandedMechanicalVideo.value?.video_url) return
+  mechanicalPreviewVisible.value = true
+}
+
+async function fetchMechanicalVideos() {
+  mechanicalVideoLoading.value = true
+  try {
+    const response = await http.get('/mechanical-videos')
+    const groups = (Array.isArray(response.data?.groups) ? response.data.groups : []).map((group) => ({
+      ...group,
+      items: Array.isArray(group.items) ? group.items.map(normalizeMechanicalVideo) : []
+    }))
+    mechanicalVideoGroups.value = groups
+    expandedMechanicalGroups.value = buildExpandedMechanicalGroups(groups)
+    selectedMechanicalVideo.value = null
+  } catch (error) {
+    console.error(error)
+    mechanicalVideoGroups.value = []
+    expandedMechanicalGroups.value = {}
+    selectedMechanicalVideo.value = null
+    ElMessage.error('机械拆装视频加载失败')
+  } finally {
+    mechanicalVideoLoading.value = false
+  }
+}
+
+function toggleMechanicalGroup(groupKey) {
+  expandedMechanicalGroups.value = {
+    ...expandedMechanicalGroups.value,
+    [groupKey]: !expandedMechanicalGroups.value[groupKey]
+  }
+}
+
+function selectMechanicalVideo(item) {
+  showMechanicalVideoMessage(item)
 }
 // --- 新增历史记录状态 ---
 const chatHistory = ref([
@@ -1500,6 +1734,7 @@ function renderLinkText(text) {
 
 function isVideo(url) {
     if (!url) return false
+    url = normalizeMediaUrl(url)
     // 简单地检查 URL 是否以 .mp4 结尾（不区分大小写）
     return url.toLowerCase().endsWith('.mp4')
 }
@@ -1516,6 +1751,7 @@ watch(loading, (value) => {
 
 onMounted(() => {
   fetchCollections()
+  fetchMechanicalVideos()
 })
 </script>
 
@@ -1524,6 +1760,7 @@ onMounted(() => {
 /* 全局样式 */
 .dashboard-container {
   height: calc(100vh - 62px);
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
@@ -1533,6 +1770,7 @@ onMounted(() => {
 .main-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
   position: relative;
 }
@@ -1680,6 +1918,13 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  min-height: 0;
+}
+
+.panel-content-mechanical {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .list-item {
@@ -1728,6 +1973,269 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+
+.tab-btn-video {
+  background: linear-gradient(145deg, #9a3412 0%, #c05621 50%, #dd6b20 100%);
+}
+
+.tab-btn-video.active {
+  background: linear-gradient(145deg, #7c2d12 0%, #b45309 50%, #ea580c 100%);
+}
+
+.mechanical-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mechanical-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.mechanical-empty,
+.mechanical-detail {
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+}
+
+.mechanical-empty {
+  padding: 18px;
+  color: #64748b;
+}
+
+.mechanical-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 50%;
+  min-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+  overscroll-behavior: contain;
+}
+
+.mechanical-group {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(93, 108, 101, 0.18);
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(247, 242, 234, 0.88));
+  box-shadow: 0 8px 20px rgba(25, 39, 34, 0.07);
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+
+.mechanical-group::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, rgba(183, 97, 43, 0.92), rgba(117, 58, 22, 0.92));
+  opacity: 0.66;
+}
+
+.mechanical-group:hover {
+  border-color: rgba(140, 88, 47, 0.3);
+  box-shadow: 0 12px 26px rgba(25, 39, 34, 0.1);
+}
+
+.mechanical-group.expanded {
+  border-color: rgba(133, 73, 34, 0.34);
+  box-shadow: 0 16px 32px rgba(25, 39, 34, 0.12);
+}
+
+.mechanical-group-toggle {
+  width: 100%;
+  border: 0;
+  padding: 15px 18px 15px 20px;
+  background:
+    linear-gradient(90deg, rgba(110, 61, 28, 0.08), transparent 32%),
+    linear-gradient(180deg, rgba(255, 248, 241, 0.98), rgba(246, 239, 230, 0.96));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  color: #5a341b;
+  cursor: pointer;
+  transition: background 0.22s ease, color 0.22s ease;
+}
+
+.mechanical-group.expanded .mechanical-group-toggle {
+  background:
+    linear-gradient(90deg, rgba(110, 61, 28, 0.12), transparent 40%),
+    linear-gradient(180deg, rgba(255, 244, 232, 0.99), rgba(244, 233, 220, 0.98));
+  color: #4b2c17;
+}
+
+.mechanical-group-toggle > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.mechanical-group-toggle strong,
+.mechanical-group-toggle span {
+  display: block;
+  text-align: left;
+}
+
+.mechanical-group-toggle strong {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.mechanical-group-toggle span {
+  margin-top: 5px;
+  color: #8a5a39;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mechanical-group-toggle .el-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(106, 62, 31, 0.08);
+  color: #7b4a26;
+  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+}
+
+.mechanical-group.expanded .mechanical-group-toggle .el-icon {
+  background: rgba(106, 62, 31, 0.14);
+  color: #5b3418;
+}
+
+.mechanical-group-toggle .el-icon.expanded {
+  transform: rotate(90deg);
+}
+
+.mechanical-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 14px 16px;
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.72), rgba(244, 238, 229, 0.88));
+  border-top: 1px solid rgba(120, 92, 70, 0.08);
+}
+
+.mechanical-video-item {
+  width: 100%;
+  border: 1px solid rgba(126, 110, 92, 0.16);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 246, 240, 0.94));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.mechanical-video-item:hover {
+  transform: translateY(-1px);
+  border-color: rgba(167, 96, 51, 0.34);
+  box-shadow: 0 10px 18px rgba(74, 55, 41, 0.1);
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.98), rgba(247, 239, 229, 0.98));
+}
+
+.mechanical-video-item.active {
+  border-color: rgba(130, 72, 36, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(130, 72, 36, 0.1), 0 12px 24px rgba(74, 55, 41, 0.12);
+  background: linear-gradient(180deg, rgba(255, 246, 236, 0.98), rgba(246, 235, 222, 0.98));
+}
+
+.mechanical-video-title {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.mechanical-video-summary {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mechanical-detail {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1 1 50%;
+  min-height: 220px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.mechanical-detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mechanical-detail-head h3 {
+  margin: 0;
+  color: #1e293b;
+  font-size: 18px;
+}
+
+.mechanical-detail-eyebrow {
+  margin: 0 0 4px;
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.mechanical-detail-file {
+  color: #64748b;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.mechanical-detail-description {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+.mechanical-knowledge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mechanical-knowledge-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(154, 52, 18, 0.08);
+  color: #9a3412;
+  font-size: 12px;
+}
+
+.mechanical-video-player {
+  width: 100%;
+  border-radius: 14px;
+  background: #0f172a;
 }
 
 .error-list .list-item {
@@ -1817,6 +2325,8 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
+  min-height: 0;
   background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
 }
 
@@ -1828,6 +2338,7 @@ onMounted(() => {
   padding: 12px 18px 6px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(248, 249, 250, 0.92) 100%);
   border-bottom: 1px solid rgba(228, 231, 237, 0.55);
+  flex-shrink: 0;
 }
 
 .flow-shell-header.compact {
@@ -2148,6 +2659,7 @@ onMounted(() => {
 /* ========== 聊天消息 ========== */
 .chat-messages-container {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 12px 16px;
   background: linear-gradient(180deg, #f5f7fa 0%, #eef1f6 100%);
@@ -2744,6 +3256,11 @@ onMounted(() => {
   background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
   padding: 8px 12px;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.04);
+  flex-shrink: 0;
+  margin-top: auto;
+  position: relative;
+  bottom: auto;
+  z-index: 2;
 }
 
 .voice-briefing {
@@ -3524,9 +4041,11 @@ onMounted(() => {
 .chat-layout {
   min-width: 0;
   min-height: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  overflow: hidden;
 }
 
 .flow-shell-header {
@@ -3591,11 +4110,13 @@ onMounted(() => {
 .chat-messages-container {
   flex: 1;
   min-height: 0;
+  overflow-y: auto;
   padding: 4px;
 }
 
 .messages-wrapper {
   max-width: 1240px;
+  min-height: 100%;
   margin: 0 auto;
 }
 
@@ -3877,9 +4398,13 @@ onMounted(() => {
 }
 
 .chat-input-area {
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
+  position: relative;
+  bottom: auto;
+  z-index: 2;
+  flex-shrink: 0;
+  margin-top: auto;
+  display: block;
+  visibility: visible;
   padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, rgba(244, 239, 230, 0) 0%, rgba(244, 239, 230, 0.92) 18%, rgba(244, 239, 230, 0.98) 100%);
 }
@@ -3904,6 +4429,8 @@ onMounted(() => {
   .sidebar-tabs {
     position: relative;
     top: 0;
+    height: auto;
+    max-height: min(60vh, 720px);
   }
 }
 
@@ -4612,4 +5139,294 @@ onMounted(() => {
     padding: 11px 12px 12px;
   }
 }
+
+.mechanical-message-card {
+  padding: 18px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 251, 246, 0.94), rgba(246, 240, 232, 0.84));
+  border: 1px solid rgba(65, 88, 80, 0.12);
+  box-shadow: var(--shadow-sm);
+}
+
+.mechanical-message-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.page.dashboard-container,
+.dashboard-container {
+  height: calc(100vh - 76px) !important;
+  min-height: calc(100vh - 76px) !important;
+  overflow: hidden;
+}
+
+.main-body {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.chat-layout {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.chat-messages-container {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.messages-wrapper {
+  min-height: auto;
+  padding-bottom: 8px;
+}
+
+.chat-input-area {
+  position: sticky;
+  bottom: 0;
+  margin-top: 0;
+  z-index: 3;
+}
+
+.panel-header {
+  flex-shrink: 0;
+}
+
+.panel-content {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.panel-content-mechanical {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.faq-list,
+.error-list,
+.history-list {
+  min-height: 0;
+}
+
+.mechanical-panel {
+  display: block;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+}
+
+.mechanical-main {
+  display: block;
+  min-height: 0;
+}
+
+.mechanical-groups {
+  min-height: 0;
+  overflow: visible;
+  padding-right: 0;
+}
+
+.mechanical-group + .mechanical-group {
+  margin-top: 12px;
+}
+
+
+.sidebar-tabs {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-self: stretch;
+  height: calc(100vh - 104px);
+  max-height: calc(100vh - 104px);
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  contain: layout paint;
+}
+
+.tab-buttons {
+  position: relative;
+  top: auto;
+  z-index: 3;
+  padding-bottom: 12px;
+  background: inherit;
+  flex-shrink: 0;
+}
+
+.tab-btn {
+  position: relative;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px 0 16px;
+  border-radius: 18px;
+  justify-content: flex-start;
+  flex-direction: row;
+  gap: 10px;
+  font-size: 15px;
+  color: rgba(246, 242, 236, 0.82);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 248, 238, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.tab-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(221, 158, 90, 0.2), rgba(124, 72, 37, 0.1));
+  opacity: 0;
+  transition: opacity 0.18s ease, background 0.18s ease;
+}
+
+.tab-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+}
+
+.tab-btn:hover {
+  transform: translateY(-1px);
+  color: #fff8f2;
+  border-color: rgba(244, 214, 179, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(182, 117, 56, 0.08));
+  box-shadow: 0 10px 20px rgba(8, 18, 17, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.tab-btn:hover::before {
+  opacity: 0.72;
+}
+
+.tab-btn.active {
+  transform: translateY(-1px);
+  color: #fffaf4;
+  border-color: rgba(245, 217, 184, 0.24);
+  background:
+    linear-gradient(90deg, rgba(181, 108, 48, 0.18), transparent 45%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.14), rgba(188, 122, 62, 0.14));
+  box-shadow: 0 14px 24px rgba(8, 18, 17, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.tab-btn.active::before {
+  opacity: 1;
+  background: linear-gradient(180deg, rgba(255, 208, 153, 0.98), rgba(192, 106, 46, 0.98));
+}
+
+.tab-btn-video {
+  background:
+    linear-gradient(90deg, rgba(152, 78, 29, 0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(188, 94, 35, 0.1));
+}
+
+.tab-btn-video.active {
+  background:
+    linear-gradient(90deg, rgba(188, 94, 35, 0.24), transparent 50%),
+    linear-gradient(180deg, rgba(255, 246, 237, 0.18), rgba(196, 96, 35, 0.18));
+}
+
+.tab-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.tab-panel {
+  position: relative;
+  min-height: 0;
+  max-height: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(243, 225, 201, 0.1);
+  background:
+    linear-gradient(180deg, rgba(255, 251, 246, 0.95), rgba(246, 240, 232, 0.92));
+  box-shadow: 0 22px 42px rgba(17, 28, 26, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.panel-header {
+  position: relative;
+  flex-shrink: 0;
+  padding: 16px 18px 12px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #2f332d;
+  background:
+    linear-gradient(90deg, rgba(184, 118, 58, 0.1), transparent 48%),
+    linear-gradient(180deg, rgba(255, 252, 248, 0.96), rgba(248, 242, 234, 0.9));
+  border-bottom: 1px solid rgba(136, 103, 73, 0.1);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.panel-header::before {
+  content: '';
+  position: absolute;
+  left: 18px;
+  bottom: 0;
+  width: 48px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(185, 107, 44, 0.95), rgba(114, 64, 29, 0.95));
+}
+
+.tab-panel {
+  min-height: 0;
+  max-height: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.mechanical-message-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mechanical-video-player-preview {
+  width: min(100%, 420px);
+  max-height: 236px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  align-self: flex-start;
+  cursor: zoom-in;
+}
+
+.mechanical-preview-player {
+  width: 100%;
+  max-height: 72vh;
+  border-radius: 18px;
+  background: #0f172a;
+}
+
+.mechanical-preview-dialog :deep(.el-dialog) {
+  border-radius: 24px;
+}
+
+.mechanical-preview-dialog :deep(.el-dialog__body) {
+  padding-top: 8px;
+}
+
 </style>
