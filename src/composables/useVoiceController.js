@@ -21,6 +21,11 @@ export function useVoiceController() {
   const recognizedText = ref('')
   const lastError = ref('')
   const voiceState = ref('off')
+  const voiceCapabilities = ref({
+    asrAvailable: null,
+    ttsAvailable: null,
+    wakeWords: []
+  })
 
   let mediaRecorder = null
   let audioChunks = []
@@ -44,6 +49,37 @@ export function useVoiceController() {
 
   function clearRecognizedText() {
     recognizedText.value = ''
+  }
+
+  async function checkVoiceHealth(forceRefresh = false) {
+    const cached = voiceCapabilities.value
+    if (
+      !forceRefresh
+      && typeof cached.asrAvailable === 'boolean'
+      && typeof cached.ttsAvailable === 'boolean'
+    ) {
+      return cached
+    }
+
+    try {
+      const response = await http.get('/voice/health', { timeout: 10000 })
+      const nextValue = {
+        asrAvailable: !!response.data?.asr_available,
+        ttsAvailable: !!response.data?.tts_available,
+        wakeWords: Array.isArray(response.data?.wake_words) ? response.data.wake_words : []
+      }
+      voiceCapabilities.value = nextValue
+      return nextValue
+    } catch (error) {
+      console.error('语音健康检查失败:', error)
+      const fallback = {
+        asrAvailable: false,
+        ttsAvailable: false,
+        wakeWords: []
+      }
+      voiceCapabilities.value = fallback
+      return fallback
+    }
   }
 
   async function initMediaStream() {
@@ -227,7 +263,8 @@ export function useVoiceController() {
         { responseType: 'blob', timeout: 60000 }
       )
 
-      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' })
+      const responseType = response.headers?.['content-type'] || 'audio/mpeg'
+      const audioBlob = new Blob([response.data], { type: responseType })
       const audioUrl = URL.createObjectURL(audioBlob)
 
       if (currentAudio) {
@@ -331,6 +368,8 @@ export function useVoiceController() {
     voiceState,
     voiceStateLabel,
     voiceStatusTone,
+    voiceCapabilities,
+    checkVoiceHealth,
     clearRecognizedText,
     setVoiceEnabled,
     startWakeWordDetection,

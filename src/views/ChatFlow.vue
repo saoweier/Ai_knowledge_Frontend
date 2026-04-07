@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="page dashboard-container">
     <!-- 移除原top-header -->
     
@@ -101,7 +101,7 @@
                 </div>
               </div>
 
-              <!-- ???? -->
+              <!-- 故障流程卡片 -->
               <div
                 v-if="activeTab === 'history'"
                 class="history-list"
@@ -283,256 +283,229 @@
                   </div>
 
                   <div
-                    v-if="msg.solution"
-                    class="solution"
+  v-if="msg.solution"
+  class="solution flow-repair-card"
+>
+  <div class="flow-repair-header">
+    <div class="flow-repair-agent">
+      <div class="flow-repair-avatar">智</div>
+      <div>
+        <div class="flow-repair-title-row">
+          <span class="flow-repair-agent-name">流程诊断助手</span>
+          <span class="flow-repair-badge">ChatFlow</span>
+        </div>
+        <p class="flow-repair-time">{{ formatTime(msg.time) }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-repair-summary">
+    <div class="flow-repair-note">流程诊断卡 · 单卡片推进</div>
+    <div class="flow-repair-summary-box">
+      <strong>{{ msg.solution.problem_summary }}</strong>
+      <span>{{ getFlowSummaryText(msg.solution) }}</span>
+    </div>
+  </div>
+
+  <template v-if="getOrderedFlowNodes(msg.solution).length">
+    <div class="flow-shell">
+      <div class="flow-step-strip">
+        <button
+          v-for="(node, nodeIndex) in getOrderedFlowNodes(msg.solution)"
+          :key="node.step_id"
+          class="flow-step-pill"
+          :class="{
+            'is-active': isActiveFlowNode(msg, node),
+            'is-current': isCurrentFlowNode(msg, node),
+            'has-next': nodeIndex < getOrderedFlowNodes(msg.solution).length - 1,
+            'has-binary-branches': getFlowNodeDisplayActions(node).length > 1
+          }"
+          @click="setActiveFlowStep(msg, node.step_id)"
+        >
+          <span class="flow-step-pill-index">{{ getFlowStepIndex(msg.solution, node.step_id) }}</span>
+          <span class="flow-step-pill-copy">
+            <strong>{{ node.title }}</strong>
+            <small>{{ getFlowStepLabel(msg, node) }}</small>
+            <span
+              v-if="getFlowNodeDisplayActions(node).length"
+              class="flow-step-branch-map"
+              :class="{ 'is-binary': getFlowNodeDisplayActions(node).length > 1 }"
+            >
+              <span class="flow-step-branch-stem"></span>
+              <span
+                v-for="(action, actionIndex) in getFlowNodeDisplayActions(node)"
+                :key="`${node.step_id}-${action.action_key}-pill`"
+                class="flow-step-branch-row"
+                :class="[
+                  `tone-${getFlowActionTone(action)}`,
+                  {
+                    'is-top': actionIndex === 0,
+                    'is-bottom': actionIndex === getFlowNodeDisplayActions(node).length - 1
+                  }
+                ]"
+              >
+                <span class="flow-step-branch-key">{{ getFlowActionMiniLabel(action) }}</span>
+                <span class="flow-step-branch-link">{{ getFlowActionBranchLabel(msg.solution, action) }}</span>
+              </span>
+            </span>
+          </span>
+        </button>
+      </div>
+
+      <div
+        v-if="getActiveFlowNode(msg)"
+        class="flow-focus-panel"
+        :class="{
+          'is-current': isCurrentFlowNode(msg, getActiveFlowNode(msg)),
+          'is-preview': !isCurrentFlowNode(msg, getActiveFlowNode(msg))
+        }"
+      >
+        <div class="flow-focus-header">
+          <div>
+            <p class="flow-focus-kicker">
+              步骤 {{ getFlowStepIndex(msg.solution, getActiveFlowNode(msg).step_id) }} / {{ getOrderedFlowNodes(msg.solution).length }}
+            </p>
+            <h4>{{ getActiveFlowNode(msg).title }}</h4>
+          </div>
+          <span class="flow-focus-state">
+            {{ isCurrentFlowNode(msg, getActiveFlowNode(msg)) ? '当前执行' : '预览节点' }}
+          </span>
+        </div>
+
+        <div class="flow-focus-layout">
+          <div class="flow-focus-main">
+            <p class="flow-focus-desc">{{ getActiveFlowNode(msg).description || '该步骤暂无补充说明。' }}</p>
+            <p
+              v-if="getActiveFlowNode(msg).condition"
+              class="flow-focus-condition"
+            >
+              判断条件：{{ getActiveFlowNode(msg).condition }}
+            </p>
+
+            <div
+              v-if="getActiveFlowNode(msg).images?.length"
+              class="flow-focus-media"
+            >
+              <div
+                v-for="(url, iidx) in getActiveFlowNode(msg).images"
+                :key="`${getActiveFlowNode(msg).step_id}-${iidx}`"
+                class="flow-focus-media-item"
+              >
+                <template v-if="isVideo(url)">
+                  <video
+                    :src="url"
+                    controls
+                    class="step-media-item step-video"
+                    preload="metadata"
+                    @click.stop
                   >
-                    <div class="diagnosis-summary-minimal">
-                      <span class="summary-item">问题概述：{{ msg.solution.problem_summary }}</span>
-                      <span class="summary-divider">|</span>
-                      <span class="summary-item">初步诊断：{{ msg.solution.quick_diagnosis }}</span>
-                    </div>
-                    <h4>📋 当前排查步骤</h4>
-                    <div
-                      v-if="msg.solution.troubleshooting_steps?.length"
-                      class="flow-steps"
-                    >
-                      <div
-                        v-for="(step, sidx) in msg.solution.troubleshooting_steps"
-                        :key="sidx"
-                        class="flow-step"
-                      >
-                        <div class="step-header">
-                          <el-tag
-                            :type="tagTypeByCategory(step.category)"
-                            size="small"
-                          >
-                            {{ step.category }}
-                          </el-tag>
-                          <strong class="ml-2">{{ step.title }}</strong>
-                        </div>
-                        <div class="step-body">
-                          <div class="step-layout">
-                            <div class="step-text-panel">
-                              <div class="instruction-card">
-                                <div class="instruction-icon">
-                                  <el-icon><InfoFilled /></el-icon><span>操作指南</span>
-                                </div>
-                                <p class="desc main-instruction">
-                                  {{ step.description }}
-                                </p>
-                              </div>
-                              <p class="expected">
-                                <strong>预期结果：</strong>{{ step.expected_result }}
-                              </p>
-                              <div
-                                v-if="step.safety_notes?.length"
-                                class="safety-inline"
-                              >
-                                <span class="safety-inline-label">安全提示</span>
-                                <span
-                                  v-for="(note, nidx) in step.safety_notes"
-                                  :key="nidx"
-                                  class="safety-chip"
-                                >
-                                  {{ note }}
-                                </span>
-                              </div>
-                            </div>
+                    您的浏览器不支持视频播放。
+                  </video>
+                </template>
+                <template v-else>
+                  <el-image
+                    :src="url"
+                    fit="cover"
+                    class="step-media-item step-img-thumb"
+                    :preview-src-list="getActiveFlowNode(msg).images.filter(u => !isVideo(u))"
+                    :initial-index="getUiImageIndex(getActiveFlowNode(msg).images, url)"
+                    :preview-teleported="true"
+                    loading="lazy"
+                  >
+                    <template #placeholder>
+                      <div class="image-slot">加载中...</div>
+                    </template>
+                  </el-image>
+                </template>
+              </div>
+            </div>
+          </div>
 
-                            <div
-                              v-if="step.images?.length"
-                              class="step-media-panel"
-                            >
-                              <div
-                                v-for="(url, iidx) in step.images"
-                                :key="iidx"
-                                class="image-wrapper"
-                              >
-                                <template v-if="isVideo(url)">
-                                  <video
-                                    :src="url"
-                                    controls
-                                    class="step-media-item step-video"
-                                    preload="metadata"
-                                    @click.stop
-                                  >
-                                    您的浏览器不支持视频播放。
-                                  </video>
-                                </template>
+          <div
+            v-if="(getActiveFlowNode(msg).actions || []).length"
+            class="flow-focus-side"
+          >
+            <div class="flow-branch-section">
+              <div class="flow-repair-note">当前步骤分支</div>
+              <div
+                class="flow-branch-grid"
+              >
+                <article
+                  v-for="action in getActiveFlowNode(msg).actions"
+                  :key="`${getActiveFlowNode(msg).step_id}-${action.action_key}`"
+                  class="flow-branch-card"
+                  :class="[`tone-${getFlowActionTone(action)}`]"
+                >
+                  <div class="flow-branch-card-head">
+                    <span class="flow-action-button-copy">{{ action.is_terminal ? '终点步骤' : '目标步骤' }}</span>
+                    <span class="flow-branch-kind">{{ action.is_terminal ? '终点' : '后续' }}</span>
+                  </div>
+                  <p class="flow-branch-card-title">{{ getFlowActionPreview(action) }}</p>
+                  <button
+                    v-if="isCurrentFlowNode(msg, getActiveFlowNode(msg))"
+                    type="button"
+                    class="flow-action-button"
+                    :class="[`tone-${getFlowActionTone(action)}`]"
+                    @click="handleFlowAction(msg, action)"
+                  >
+                    <span class="flow-action-button-label">{{ getFlowActionButtonText(action) }}</span>
+                    <span class="flow-action-button-copy">{{ action.is_terminal ? '切换到终点说明' : '切换到下一节点' }}</span>
+                  </button>
+                </article>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                                <template v-else>
-                                  <el-image
-                                    :src="url"
-                                    fit="cover"
-                                    class="step-media-item step-img-thumb"
-                                    :preview-src-list="step.images.filter(u => !isVideo(u))"
-                                    :initial-index="getUiImageIndex(step.images, url)"
-                                    :preview-teleported="true"
-                                    loading="lazy"
-                                  >
-                                    <template #placeholder>
-                                      <div class="image-slot">
-                                        加载中...
-                                      </div>
-                                    </template>
-                                  </el-image>
-                                </template>
-                              </div>
-                            </div>
-                          </div>
+        <div
+          v-if="!(getActiveFlowNode(msg).actions || []).length"
+          class="flow-branch-empty"
+        >
+          当前步骤没有可继续推进的分支。
+        </div>
 
-                          <div class="flow-actions">
-                            <template v-if="isStandardBinary(step)">
-                              <el-card
-                                shadow="hover"
-                                class="action-card success-card"
-                                @click="handleFlowAction(msg.currentFlowId, 'SUCCESS', step.if_success)"
-                              >
-                                <div class="action-header">
-                                  <el-icon
-                                    color="#67c23a"
-                                    size="20"
-                                  >
-                                    <CircleCheck />
-                                  </el-icon>
-                                  <strong>是</strong>
-                                </div>
-                                <div
-                                  class="action-content"
-                                  @click="handleContentClick($event)"
-                                  v-html="renderLinkText(step.if_success)"
-                                />
-                                <el-button
-                                  type="success"
-                                  size="small"
-                                  class="mt-2"
-                                  @click.stop="handleFlowAction(msg.currentFlowId, 'SUCCESS', step.if_success)"
-                                >
-                                  点击继续 →
-                                </el-button>
-                              </el-card>
-                              <el-card
-                                shadow="hover"
-                                class="action-card failed-card mt-2"
-                                @click="handleFlowAction(msg.currentFlowId, 'FAILED', step.if_failed)"
-                              >
-                                <div class="action-header">
-                                  <el-icon
-                                    color="#f56c6c"
-                                    size="20"
-                                  >
-                                    <CircleClose />
-                                  </el-icon>
-                                  <strong>否</strong>
-                                </div>
-                                <div
-                                  class="action-content"
-                                  @click="handleContentClick($event)"
-                                  v-html="renderLinkText(step.if_failed)"
-                                />
-                                <el-button
-                                  type="danger"
-                                  size="small"
-                                  class="mt-2"
-                                  @click.stop="handleFlowAction(msg.currentFlowId, 'FAILED', step.if_failed)"
-                                >
-                                  点击继续 →
-                                </el-button>
-                              </el-card>
-                            </template>
+        <div
+          v-if="msg.solution.inline_notice"
+          class="flow-inline-notice"
+        >
+          {{ msg.solution.inline_notice }}
+        </div>
 
-                            <template v-else-if="isLinearStep(step)">
-                              <el-card
-                                shadow="hover"
-                                class="action-card next-step-card"
-                                style="border-left: 5px solid #409EFF;"
-                                @click="handleFlowAction(msg.currentFlowId, 'NEXT', step.if_next_step)"
-                              >
-                                <div class="action-header">
-                                  <el-icon
-                                    color="#409EFF"
-                                    size="20"
-                                  >
-                                    <Right />
-                                  </el-icon>
-                                  <strong>下一步操作</strong>
-                                </div>
-                                <div
-                                  class="action-content"
-                                  @click="handleContentClick($event)"
-                                  v-html="renderLinkText(step.if_next_step)"
-                                />
-                                <div
-                                  v-if="extractLinks(step.if_next_step).length"
-                                  class="action-links"
-                                >
-                                  <el-tag
-                                    v-for="(link, lidx) in extractLinks(step.if_next_step)"
-                                    :key="lidx"
-                                    size="small"
-                                    effect="plain"
-                                  >
-                                    {{ link }}
-                                  </el-tag>
-                                </div>
-                                <el-button
-                                  type="primary"
-                                  size="small"
-                                  class="mt-2"
-                                  @click.stop="handleFlowAction(msg.currentFlowId, 'NEXT', step.if_next_step)"
-                                >
-                                  执行并继续 →
-                                </el-button>
-                              </el-card>
-                            </template>
+        <div
+          v-if="!isCurrentFlowNode(msg, getActiveFlowNode(msg))"
+          class="flow-preview-tip"
+        >
+          当前展示的是预览节点。真正可执行的按钮始终挂在“当前执行”节点上。
+        </div>
+      </div>
+    </div>
+  </template>
 
-                            <template v-else-if="isBranchTerminal(step)">
-                              <el-card
-                                shadow="never"
-                                class="flow-end-card"
-                              >
-                                <div class="end-header">
-                                  <el-icon
-                                    color="#409EFF"
-                                    size="22"
-                                  >
-                                    <CircleCheck />
-                                  </el-icon>
-                                  <strong>流程已到达终点</strong>
-                                </div>
-                                <div class="end-content">
-                                  <p>✅ 当前诊断流程已完成。</p>
-                                  <p>如果问题仍未解决，请联系管理员或运维人员以获得人工支持。</p>
-                                  <p
-                                    v-if="terminalBranchText(step)"
-                                    class="muted"
-                                  >
-                                    <small>{{ terminalBranchText(step) }}</small>
-                                  </p>
-                                </div>
-                                <div class="end-actions">
-                                  <el-button
-                                    type="primary"
-                                    size="small"
-                                    @click="contactAdmin"
-                                  >
-                                    联系管理员
-                                  </el-button>
-                                  <el-button
-                                    size="small"
-                                    @click="copyTerminalText(step)"
-                                  >
-                                    复制说明
-                                  </el-button>
-                                </div>
-                              </el-card>
-                            </template>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+  <template v-else>
+    <div class="flow-repair-summary-box fallback">
+      <strong>{{ msg.solution.problem_summary }}</strong>
+      <span>{{ getFlowSummaryText(msg.solution) }}</span>
+    </div>
+    <div
+      v-if="msg.solution.troubleshooting_steps?.length"
+      class="flow-repair-fallback-steps"
+    >
+      <div
+        v-for="(step, sidx) in msg.solution.troubleshooting_steps"
+        :key="`fallback-${sidx}`"
+        class="flow-repair-fallback-step"
+      >
+        <div class="flow-repair-fallback-step-head">
+          <span class="flow-step-pill-index">{{ step.step_number || sidx + 1 }}</span>
+          <strong>{{ step.title }}</strong>
+        </div>
+        <p>{{ step.description }}</p>
+      </div>
+    </div>
+  </template>
 
-                    <el-alert
+
+<el-alert
                       v-if="msg.solution.escalation_info"
                       class="mt-1"
                       type="warning"
@@ -540,7 +513,6 @@
                       show-icon
                       :closable="false"
                     />
-
                     <el-collapse
                       v-if="msg.solution.related_knowledge?.length"
                       class="mt-2 knowledge-collapse"
@@ -804,7 +776,6 @@
             @update:memory="(n)=> memoryLimit = n"
             @update:voice-enabled="(v) => handleVoiceToggle(v)"
             @mic-click="handleMicClick"
-            @voice-toggle="handleVoiceToggle"
             @stop-speaking="stopSpeaking"
           />
           <div class="footer-note">
@@ -830,7 +801,7 @@
             class="mechanical-preview-player"
             preload="metadata"
           >
-            ?????????????
+            您的浏览器不支持视频播放。
           </video>
         </el-dialog>
       </main>
@@ -841,8 +812,8 @@
 
 <script setup>
 import { ref, computed, nextTick, onMounted, watch } from 'vue'
-import { ElMessage , ElMessageBox} from 'element-plus'
-import { ArrowRight, Clock, CircleCheck, CircleClose, Right, QuestionFilled, Warning, InfoFilled } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { ArrowRight, Clock, QuestionFilled, Warning, InfoFilled } from '@element-plus/icons-vue'
 import http from '@/api/http'
 import MessageInput from '@/components/MessageInput.vue'
 import { useVoiceController } from '@/composables/useVoiceController'
@@ -865,6 +836,7 @@ const {
   lastError,
   voiceStateLabel,
   voiceStatusTone,
+  checkVoiceHealth,
   setVoiceEnabled,
   startWakeWordDetection,
   stopWakeWordDetection,
@@ -889,10 +861,232 @@ const latestFlowMessage = computed(() => {
 })
 
 const currentFlowGuidance = computed(() => {
-  if (!voiceEnabled.value) return '语音关闭时仍可手动点击流程卡推进。'
+  if (!voiceEnabled.value) return '语音控制已关闭，请先开启语音助手。'
   if (latestFlowMessage.value?.guidance) return latestFlowMessage.value.guidance
-  return '可通过语音或按钮推进当前流程。'
+  return '可以直接说下一步或完成当前步骤。'
 })
+
+function getFlowGraph(solution) {
+  return solution?.flow_graph || null
+}
+
+function getOrderedFlowNodes(solution) {
+  const graph = getFlowGraph(solution)
+  if (!graph) return []
+  const nodes = Array.isArray(graph.nodes) ? graph.nodes : []
+  const nodeMap = new Map(nodes.map((node) => [node.step_id, node]))
+  const orderedIds = Array.isArray(graph.ordered_step_ids) ? graph.ordered_step_ids : []
+  const ordered = orderedIds.map((id) => nodeMap.get(id)).filter(Boolean)
+  return ordered.length ? ordered : nodes
+}
+
+function getFlowNodeById(solution, stepId) {
+  return getOrderedFlowNodes(solution).find((node) => node.step_id === stepId) || null
+}
+
+function getCurrentFlowStepId(solution) {
+  return solution?.current_step_id || getOrderedFlowNodes(solution)[0]?.step_id || ''
+}
+
+function getActiveFlowStepId(msg) {
+  return msg?.activeStepId || getCurrentFlowStepId(msg?.solution)
+}
+
+function setActiveFlowStep(msg, stepId) {
+  if (msg && stepId) msg.activeStepId = stepId
+}
+
+function getActiveFlowNode(msg) {
+  return getFlowNodeById(msg?.solution, getActiveFlowStepId(msg)) || getFlowNodeById(msg?.solution, getCurrentFlowStepId(msg?.solution)) || getOrderedFlowNodes(msg?.solution)[0] || null
+}
+
+function isCurrentFlowNode(msg, node) {
+  return !!node && node.step_id === getCurrentFlowStepId(msg?.solution)
+}
+
+function isActiveFlowNode(msg, node) {
+  return !!node && node.step_id === getActiveFlowStepId(msg)
+}
+
+function getFlowStepIndex(solution, stepId) {
+  const ordered = getOrderedFlowNodes(solution)
+  const index = ordered.findIndex((node) => node.step_id === stepId)
+  return index >= 0 ? index + 1 : '-'
+}
+
+function getFlowStepLabel(msg, node) {
+  if (!node) return ''
+  if (isCurrentFlowNode(msg, node)) return '当前步骤'
+  if (isActiveFlowNode(msg, node)) return '查看中'
+  if (node.is_terminal) return '终点节点'
+  return '流程节点'
+}
+
+function getFlowSummaryText(solution) {
+  const candidates = [solution?.flow_summary, solution?.quick_diagnosis]
+    .map((item) => extractMainText(item || ''))
+    .filter(Boolean)
+  const problemSummary = extractMainText(solution?.problem_summary || '')
+  const deduped = candidates.filter((item, index) => candidates.indexOf(item) === index && item !== problemSummary)
+  return deduped[0] || candidates[0] || '已进入流程排查，请按照当前步骤继续处理。'
+}
+function getRawFlowActionText(action) {
+  return action?.target_action_text || action?.terminal_message || ''
+}
+
+function getFlowActionText(action) {
+  return extractMainText(getRawFlowActionText(action))
+}
+
+function getFlowActionBranchLabel(solution, action) {
+  if (!action) return ''
+  const targetIndex = action?.target_step_id ? getFlowStepIndex(solution, action.target_step_id) : ''
+  if (targetIndex && targetIndex !== '-') return `${action.label}→${targetIndex}`
+  return action.label || '分支'
+}
+
+function getFlowActionMiniLabel(action) {
+  const normalized = String(action?.action_key || '').toUpperCase()
+  if (normalized === 'IF_SUCCESS') return '成功'
+  if (normalized === 'IF_FAILED') return '失败'
+  return '下一步'
+}
+
+function getFlowActionOrder(action) {
+  const normalized = String(action?.action_key || '').toUpperCase()
+  if (normalized === 'IF_SUCCESS') return 0
+  if (normalized === 'IF_FAILED') return 1
+  return 2
+}
+
+function getFlowNodeDisplayActions(node) {
+  if (!Array.isArray(node?.actions)) return []
+  return [...node.actions].sort((left, right) => getFlowActionOrder(left) - getFlowActionOrder(right))
+}
+
+function getFlowActionPreview(action) {
+  return action?.target_step_title || getFlowActionText(action) || (action?.is_terminal ? '流程在此结束' : '等待后端返回下一节点')
+}
+
+
+function getFlowActionButtonText(action) {
+  const normalized = String(action?.action_key || '').toUpperCase()
+  if (normalized === 'IF_SUCCESS') return '选择正常分支'
+  if (normalized === 'IF_FAILED') return '选择异常分支'
+  return '继续到下一步'
+}
+
+function mapFlowActionFeedback(actionKey) {
+  const normalized = String(actionKey || '').toUpperCase()
+  if (normalized === 'IF_SUCCESS') return 'SUCCESS'
+  if (normalized === 'IF_FAILED') return 'FAILED'
+  return 'NEXT'
+}
+
+function getFlowActionTone(action) {
+  const normalized = String(action?.action_key || '').toUpperCase()
+  if (normalized === 'IF_SUCCESS') return 'success'
+  if (normalized === 'IF_FAILED') return 'danger'
+  return 'primary'
+}
+
+function normalizeProgressiveSolution(ps) {
+  if (!ps || typeof ps !== 'object') return ps
+
+  if (typeof ps.images === 'string') {
+    ps.images = ps.images.startsWith('[') ? JSON.parse(ps.images) : [ps.images]
+  }
+
+  if (Array.isArray(ps.related_knowledge)) {
+    ps.related_knowledge = ps.related_knowledge.map((item) => {
+      if (typeof item.image_path === 'string' && item.image_path.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(item.image_path)
+          item.image_path = Array.isArray(parsed) ? parsed[0] : parsed
+        } catch {
+          // ignore
+        }
+      }
+      return item
+    })
+  }
+
+  if (Array.isArray(ps.troubleshooting_steps)) {
+    ps.troubleshooting_steps = ps.troubleshooting_steps.map((step) => {
+      if (typeof step.images === 'string') {
+        try {
+          step.images = step.images.startsWith('[') ? JSON.parse(step.images) : [step.images]
+        } catch {
+          step.images = [step.images]
+        }
+      }
+      return step
+    })
+  }
+
+  if (ps.flow_graph && Array.isArray(ps.flow_graph.nodes)) {
+    ps.flow_graph.nodes = ps.flow_graph.nodes.map((node) => {
+      if (typeof node.images === 'string') {
+        try {
+          node.images = node.images.startsWith('[') ? JSON.parse(node.images) : [node.images]
+        } catch {
+          node.images = [node.images]
+        }
+      }
+      return node
+    })
+  }
+
+  return ps
+}
+
+function setVoiceActionContext(msg) {
+  if (!msg?.solution) {
+    lastFlowActionContext.value = null
+    return
+  }
+
+  const activeNode = getActiveFlowNode(msg)
+  if (!activeNode) {
+    lastFlowActionContext.value = null
+    return
+  }
+
+  lastFlowActionContext.value = {
+    msg,
+    step: activeNode
+  }
+}
+
+function safeRunPostResponse(taskName, fn) {
+  try {
+    fn()
+  } catch (error) {
+    console.error(`[ChatFlow] post-response task failed: ${taskName}`, error)
+  }
+}
+
+function handleFlowAction(msg, action) {
+  if (!msg?.solution || !action) return
+
+  const targetId = action?.target_step_id
+  const targetNode = targetId ? getFlowNodeById(msg.solution, targetId) : null
+
+  if (targetNode) {
+    msg.solution.current_step_id = targetNode.step_id
+    msg.solution.current_step_title = targetNode.title || msg.solution.current_step_title
+    msg.activeStepId = targetNode.step_id
+    msg.solution.inline_notice = ''
+    if (targetNode?.images?.length) {
+      msg.solution.images = targetNode.images
+    }
+    setVoiceActionContext(msg)
+    return
+  }
+
+  msg.solution.inline_notice = getFlowActionText(action) || '当前分支没有配置可展示的后续步骤。'
+  setVoiceActionContext(msg)
+}
 
 async function fetchCollections() {
   collectionLoading.value = true
@@ -911,7 +1105,21 @@ async function fetchCollections() {
   }
 }
 
-function handleVoiceToggle(enabled) {
+async function handleVoiceToggle(enabled) {
+  if (enabled) {
+    const health = await checkVoiceHealth()
+    if (!health.asrAvailable) {
+      ElMessage.warning('语音识别依赖未就绪，当前无法启用语音助手')
+      setVoiceEnabled(false)
+      stopWakeWordDetection()
+      stopSpeaking()
+      return
+    }
+    if (!health.ttsAvailable) {
+      ElMessage.info('当前仅可使用语音识别，语音播报未安装依赖')
+    }
+  }
+
   setVoiceEnabled(enabled)
   if (enabled) {
     startWakeWordDetection(() => {
@@ -948,28 +1156,19 @@ function handleMicClick() {
 
 function handleRecognizedFlowCommand(command) {
   const ctx = lastFlowActionContext.value
-  if (!ctx?.step || !ctx?.flowId) {
+  if (!ctx?.msg || !ctx?.step) {
     ElMessage.warning('当前没有可推进的流程节点')
     return false
   }
 
-  const actionText = resolveFlowActionText(ctx.step, command)
-  if (!actionText) {
+  const action = (ctx.step.actions || []).find((item) => mapFlowActionFeedback(item.action_key) === command)
+  if (!action) {
     ElMessage.warning('当前步骤不支持该语音指令')
     return false
   }
 
-  handleFlowAction(ctx.flowId, command, actionText)
-  lastFlowActionContext.value = null
+  handleFlowAction(ctx.msg, action)
   return true
-}
-
-function resolveFlowActionText(step, command) {
-  if (!step) return ''
-  if (command === 'SUCCESS') return step.if_success || ''
-  if (command === 'FAILED') return step.if_failed || ''
-  if (command === 'NEXT') return step.if_next_step || step.if_success || ''
-  return ''
 }
 
 async function speakGuidance(msg) {
@@ -995,10 +1194,7 @@ async function speakGuidance(msg) {
   if (fullText) {
     await speakText(fullText, () => {
       if (msg.solution?.troubleshooting_steps?.length) {
-        lastFlowActionContext.value = {
-          flowId: msg.currentFlowId,
-          step: msg.solution.troubleshooting_steps[0]
-        }
+        setVoiceActionContext(msg)
       }
     })
   }
@@ -1053,7 +1249,7 @@ const panelTitle = computed(() => {
   const titles = {
     faq: '常见问题',
     error: '故障代码',
-    history: '????',
+    history: '历史案例',
     mechanical: '机械拆装'
   }
   return titles[activeTab.value] || ''
@@ -1250,65 +1446,26 @@ async function onSend({ text, api: whichApi, options: opt, displayText }) {
     }
 
     if (data.progressive_solution) {
-      const ps = data.progressive_solution
+      const ps = normalizeProgressiveSolution(data.progressive_solution)
       console.log('🟢 收到 progressive_solution：', ps)
       console.log('🟢 current_flow_id:', data.current_flow_id)
-      // 🧩 针对 image_path / images 做类型安全修正
-      try {
-          // 1. 顶层 images 可能是字符串而不是数组
-          if (typeof ps.images === 'string') {
-            ps.images = [ps.images]
-          }
 
-          // 2. related_knowledge 里的 image_path
-          if (Array.isArray(ps.related_knowledge)) {
-          ps.related_knowledge = ps.related_knowledge.map(item => {
-              if (typeof item.image_path === 'string') {
-              // 如果是字符串化 JSON，例如 '["url"]'
-                if (item.image_path.startsWith('[')) {
-                  try {
-                    const parsed = JSON.parse(item.image_path)
-                    item.image_path = Array.isArray(parsed) ? parsed[0] : parsed
-                  } catch { /* 忽略错误，保持原样 */ }
-                }
-              }
-              return item
-            })
-          }
-
-          // 3. troubleshooting_steps 里的 images
-          if (Array.isArray(ps.troubleshooting_steps)) {
-          ps.troubleshooting_steps = ps.troubleshooting_steps.map(step => {
-            if (typeof step.images === 'string') {
-                if (step.images.startsWith('[')) {
-                  try {
-                    step.images = JSON.parse(step.images)
-                  } catch {
-                    step.images = [step.images]
-                  }
-                } else {
-                  step.images = [step.images]
-                }
-              }
-              return step
-            })
-          }
-      } catch (err) {
-          console.warn('🟠 progressive_solution 图片字段清理失败：', err)
-      }
-
-      // ✅ 推入消息
       const newMsg = {
-          role: 'assistant',
-          time: Date.now(),
-          guidance: data.guidance || '',
-          query_intent: data.query_intent || '',
-          solution: ps,
-          results: Array.isArray(data.results) ? data.results : [],
-          currentFlowId: data.current_flow_id
+        role: 'assistant',
+        time: Date.now(),
+        guidance: data.guidance || '',
+        query_intent: data.query_intent || '',
+        solution: ps,
+        results: Array.isArray(data.results) ? data.results : [],
+        currentFlowId: data.current_flow_id,
+        activeStepId: getCurrentFlowStepId(ps)
       }
+      if (newMsg.solution) newMsg.solution.inline_notice = ''
       messages.value.push(newMsg)
-      speakGuidance(newMsg)
+      safeRunPostResponse('setVoiceActionContext', () => setVoiceActionContext(newMsg))
+      safeRunPostResponse('speakGuidance', () => {
+        void speakGuidance(newMsg)
+      })
     }
     else {
       const newMsg = {
@@ -1320,7 +1477,9 @@ async function onSend({ text, api: whichApi, options: opt, displayText }) {
         text: data.answer || data.message || '（无可展示内容）'
       }
       messages.value.push(newMsg)
-      speakGuidance(newMsg)
+      safeRunPostResponse('speakGuidance', () => {
+        void speakGuidance(newMsg)
+      })
     }
     updateHistory(shownText);
   } catch (e) {
@@ -1337,146 +1496,17 @@ async function onSend({ text, api: whichApi, options: opt, displayText }) {
   }
 }
 
-// 处理流程分支点击
-async function handleFlowAction(flowId, feedbackType, actionText) {
-  console.log('🔍 handleFlowAction 被调用', { flowId, feedbackType, actionText, loading: loading.value })
-  if (loading.value) {
-    console.log('⚠️ 正在加载中，忽略点击')
-    return
-  }
-    const queryText = extractMainText(actionText)
-    console.log('👉 处理流程分支点击：', { flowId, feedbackType, actionText, queryText })
-  // 若该 actionText 标注为终点，则不再调用后端推进，直接展示终点提示
-  if ((actionText || '').trim().startsWith('[流程终点]')) {
-    // 把用户的点击也记录为用户消息（可选）
-    const terminalText = actionText.replace(/^\[流程终点\]\s*/i, '').trim()
-    messages.value.push({
-      role: 'user',
-      text: terminalText || '（查看终点说明）',
-      feedbackType,
-      time: Date.now()
-    })
-    scrollToLatestMessage()
 
-    // 显示助手端终点消息（可用 create_flow_progression_solution 中的 quick_diagnosis 文本替代）
-    messages.value.push({
-      role: 'assistant',
-      time: Date.now(),
-      text: terminalBranchText({ if_failed: actionText, if_success: actionText }) || '流程已到达终点。如问题仍未解决，请联系管理员。'
-    })
-    // 弹出联系管理员提示（可选）
-    contactAdmin()
-    return
-  }
-  
-  // 添加用户反馈消息
-  messages.value.push({ 
-    role: 'user', 
-    text: queryText,
-    feedbackType: feedbackType,
-    time: Date.now() 
-  })
-  scrollToLatestMessage()
-
-  const params = {
-    query_text: queryText,
-    enable_llm_integration: !!options.value.enableLLM,
-    collection_name: options.value.collectionName || undefined,
-    current_flow_id: flowId,
-    feedback_type: feedbackType,
-    graph_mode: true,
-    force_content_type: 'fault_diagnosis'
-  }
-
-  loading.value = true
-  try {
-    const resp = await http.get('/search_flow_solution', { params })
-    const data = resp.data || {}
-
-    // 更新当前流程 ID
-    if (data.current_flow_id) {
-      currentFlowId.value = data.current_flow_id
-    }
-
-    if (data.progressive_solution) {
-      const newMsg = {
-        role: 'assistant',
-        time: Date.now(),
-        guidance: data.guidance || '',
-        query_intent: data.query_intent || '',
-        solution: data.progressive_solution,
-        results: Array.isArray(data.results) ? data.results : [],
-        currentFlowId: data.current_flow_id
-      }
-      messages.value.push(newMsg)
-      speakGuidance(newMsg)
-    } else {
-      const newMsg = {
-        role: 'assistant',
-        time: Date.now(),
-        results: Array.isArray(data.results) ? data.results : [],
-        text: data.answer || data.message || '流程已完成或无后续步骤。'
-      }
-      messages.value.push(newMsg)
-      speakGuidance(newMsg)
-    }
-  } catch (e) {
-    console.error(e)
-    ElMessage.error('请求失败，请检查后端服务或控制台日志')
-    messages.value.push({
-      role: 'assistant',
-      time: Date.now(),
-      text: '❌ 请求失败，请稍后重试。'
-    })
-    scrollToLatestMessage()
-  } finally {
-    loading.value = false
-  }
-}
-
-// 辅助：判断文本是否标记为流程终点
-function isEndpointText(text) {
-  return (text || '').trim().startsWith('[流程终点]')
-}
 
 // 逻辑 A：是否是标准的二叉分支（成功/失败同时存在，且都不是终点）
 // 优先级最高：如果满足此条件，忽略 if_next_step，避免混淆
-function isStandardBinary(step) {
-  if (!step) return false
-  return step.if_success && step.if_failed && 
-         !isEndpointText(step.if_success) && 
-         !isEndpointText(step.if_failed)
-}
-
-// 逻辑 B：是否是线性下一步（存在 if_next_step 且不是终点）
-// 优先级次之：如果不是二叉分支，但有下一步，则渲染下一步
-function isLinearStep(step) {
-  if (!step) return false
-  // 如果 next_step 存在且没有标记为终点，则认为是线性步骤
-  return step.if_next_step && !isEndpointText(step.if_next_step)
-}
-
-// 逻辑 C：是否是流程终点（修改原有的 isBranchTerminal）
-// 优先级最低：如果既不是二叉，也不是线性下一步，检查是否有终点标记
-function isBranchTerminal(step) {
-  if (!step) return false
-  
-  // 1. 如果存在有效的线性下一步，绝对不是终点（这是本次需求的核心修正）
-  if (isLinearStep(step)) return false
-
-  // 2. 检查各个字段是否包含终点标记
-  const candidates = [step.if_success, step.if_failed, step.if_next_step]
-  return candidates.some(text => isEndpointText(text))
-}
-
-// 清空对话
 function clearAll() {
   messages.value = []
   currentFlowId.value = null
   lastFlowActionContext.value = null
   stopSpeaking()
-}
 
+}
 function formatScore(score) {
   const value = Number(score)
   return Number.isFinite(value) ? value.toFixed(3) : '0.000'
@@ -1590,21 +1620,6 @@ function extractMainText(text) {
 
 
 // 从文本中提取链接标签
-function extractLinks(text) {
-  if (!text) return []
-  const matches = text.match(/<link>(.*?)<\/link>/g)
-  if (!matches) return []
-  return matches.map(m => m.replace(/<\/?link>/g, ''))
-}
-
-function tagTypeByCategory(category) {
-  const c = (category || '').toLowerCase()
-  if (c === 'flow_start') return 'primary'
-  if (c === 'flow_continue') return 'success'
-  if (c === 'flow_end') return 'info'
-  return 'warning'
-}
-
 function formatTime(ts) {
   const d = new Date(ts)
   return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`
@@ -1621,117 +1636,7 @@ function formatTime(ts) {
 
 // 返回终点分支的纯文本（去掉标识），优先取 if_failed then if_success
 // 修改：获取终点文本（增加对 if_next_step 的支持）
-function terminalBranchText(step) {
-  if (!step) return ''
-  // 按优先级检查
-  const candidates = [step.if_next_step, step.if_failed, step.if_success].filter(Boolean)
-  for (const t of candidates) {
-    if (isEndpointText(t)) {
-      return t.replace(/^\[流程终点\]\s*/i, '').trim()
-    }
-  }
-  return ''
-}
-
-// 复制终点说明到剪贴板
-async function copyTerminalText(step) {
-  const text = terminalBranchText(step)
-  if (!text) {
-    ElMessage.warning('无可复制的终点说明')
-    return
-  }
-  try {
-    await navigator.clipboard.writeText(text)
-    ElMessage.success('已复制终点说明到剪贴板')
-  } catch {
-    ElMessage.warning('复制失败，请手动选择并复制')
-  }
-}
-
-// 联系管理员（可定制：跳转至帮助页或弹窗展示联系方式）
-function contactAdmin() {
-  // 若你有路由帮助页，替换为 router.push('/help') 更友好
-  ElMessageBox.alert(
-    '请联系系统管理员或运维人员以获得人工支持。\n\n联系方式：运维邮箱 ops@example.com；电话：+86-10-1234-5678',
-    '联系管理员',
-    { confirmButtonText: '知道了', type: 'info' }
-  )
-}
 // --- 新增函数：处理内容区点击事件 ---
-function handleContentClick(event) {
-  // 1. 尝试找到被点击元素中，带有 .clickable-link-tag 类的最近祖先（包含自身）
-  const target = event.target.closest('.clickable-link-tag')
-  
-  // 2. 如果找到了，说明用户点击的是链接
-  if (target) {
-    // 阻止事件冒泡：这会阻止点击事件传播到 el-card 或其他父级组件
-    event.stopPropagation() 
-    event.preventDefault()
-
-    // 从 data-query 属性中拿到查询文本
-    const queryText = target.dataset.query
-    if (queryText) {
-      handleLinkClick(queryText)
-    }
-  }
-  // 3. 如果没找到，说明用户点的是普通文本，什么都不做，事件自然冒泡
-}
-// --- 新增函数：处理点击 link 元素 ---
-function handleLinkClick(text) {
-    if (!text?.trim()) return
-    
-    // 注意：这里的 currentConfig 是正确的，它就是要发起的新查询
-    const currentConfig = {
-        text: text,
-        api: api.value, // 使用当前的 API 配置
-        options: options.value 
-    }
-    
-    ElMessageBox.confirm(
-        `确定以「${text}」为查询内容进行新的诊断吗？`,
-        '发起新查询',
-        {
-            confirmButtonText: '确定查询',
-            cancelButtonText: '取消',
-            type: 'info',
-        }
-    ).then(() => {
-        // 确认后，执行查询
-        console.log(`🔗 发起链接查询: ${text}`)
-        // 确保传递正确的对象
-        onSend(currentConfig) 
-    }).catch(() => {
-        // 用户取消
-    })
-}
-/**
- * 渲染包含 <link> 标签的 HTML 文本。
- * 将 <link> 标签内容转换为带有点击事件的 <span> 元素。
- * @param {string} text - 待处理的字符串。
- * @param {function} clickHandler - 触发点击时调用的函数。
- * @returns {string} 渲染后的 HTML 字符串。
- */
-function renderLinkText(text) {
-  if (typeof text !== 'string') return ''
-  
-  const linkRegex = /<link>(.*?)<\/link>/g
-  
-  // 生成带有 data-query 属性的 span
-  let result = text.replace(linkRegex, (match, linkContent) => {
-    // 对内容做一下转义，防止 data 属性被双引号截断
-    const safeContent = linkContent.replace(/"/g, '&quot;')
-    
-    return `<span 
-              class="clickable-link-tag" 
-              data-query="${safeContent}"
-            >${linkContent}</span>`
-  })
-
-  // 清理终点标识
-  result = result.replace(/^\[流程终点\]\s*/i, '').trim()
-  return result
-}
-
 function isVideo(url) {
     if (!url) return false
     url = normalizeMediaUrl(url)
@@ -3222,6 +3127,8 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   min-height: 168px;
+  max-height: 120px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
   display: block;
 }
@@ -4913,7 +4820,7 @@ onMounted(() => {
 }
 
 .bubble.user .bubble-content {
-  max-width: min(74%, 680px);
+  max-width: min(58%, 420px);
   padding: 12px 16px;
   border-radius: 18px 18px 6px 18px;
   background: linear-gradient(145deg, #1e6a61 0%, #174d46 100%);
@@ -4931,8 +4838,9 @@ onMounted(() => {
 }
 
 .assistant-content-box {
-  padding: 14px 16px;
-  border-radius: 20px;
+  width: min(calc(100% - 40px), 720px);
+  padding: 10px 12px;
+  border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 251, 246, 0.96), rgba(247, 241, 233, 0.92));
   border: 1px solid rgba(65, 88, 80, 0.1);
   box-shadow: 0 18px 34px rgba(27, 42, 37, 0.07);
@@ -5122,17 +5030,28 @@ onMounted(() => {
   .assistant-content-box {
     width: 100%;
     max-width: 100%;
-    padding: 13px 14px;
+    padding: 11px 12px;
     border-radius: 18px;
   }
 
   .bubble.user .bubble-content {
     margin-left: 14px;
+    max-width: min(84%, 320px);
   }
 
   .flow-step {
     padding: 12px;
     border-radius: 16px;
+  }
+
+  .flow-focus-media {
+    grid-template-columns: repeat(2, minmax(0, 92px));
+    gap: 8px;
+  }
+
+  .step-media-item {
+    min-height: 72px;
+    max-height: 72px;
   }
 
   .action-card :deep(.el-card__body) {
@@ -5429,4 +5348,612 @@ onMounted(() => {
   padding-top: 8px;
 }
 
+.flow-repair-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flow-repair-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.flow-repair-agent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flow-repair-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 45%, #dcfce7 100%);
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 800;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.flow-repair-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flow-repair-agent-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.flow-repair-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.flow-repair-time {
+  margin: 2px 0 0;
+  font-size: 10px;
+  color: #94a3b8;
+}
+
+.flow-repair-note {
+  display: inline-flex;
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.flow-repair-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flow-repair-summary-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  color: #475569;
+  line-height: 1.55;
+}
+
+.flow-repair-summary-box strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.flow-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flow-focus-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 5.6fr) minmax(164px, 1fr);
+  gap: 0;
+  align-items: stretch;
+  border-radius: 14px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.92) 0%, rgba(248, 250, 252, 0.98) 70%, rgba(241, 245, 249, 0.98) 100%);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  overflow: hidden;
+}
+
+.flow-focus-main {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  padding: 10px 14px 10px 2px;
+}
+
+.flow-focus-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  padding: 10px 0 10px 12px;
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.92), rgba(241, 245, 249, 0.98));
+}
+
+.flow-step-strip {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  padding: 4px 10px 8px 2px;
+  scrollbar-width: thin;
+}
+
+.flow-step-pill {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 188px;
+  max-width: 208px;
+  padding: 10px 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+  position: relative;
+}
+
+.flow-step-pill.has-next::after {
+  content: '';
+  position: absolute;
+  top: 22px;
+  left: calc(100% + 4px);
+  width: 14px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.55), rgba(59, 130, 246, 0.32));
+  border-radius: 999px;
+}
+
+.flow-step-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+}
+
+.flow-step-pill.is-active {
+  border-color: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 14px 32px rgba(59, 130, 246, 0.12);
+}
+
+.flow-step-pill.is-current {
+  background: linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);
+}
+
+.flow-step-pill-index {
+  width: 22px;
+  height: 22px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.flow-step-pill-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.flow-step-pill-copy strong {
+  font-size: 12px;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.flow-step-pill-copy small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.flow-focus-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.flow-focus-panel.is-current {
+  border-color: rgba(59, 130, 246, 0.3);
+  box-shadow: 0 16px 36px rgba(59, 130, 246, 0.08);
+}
+
+.flow-focus-panel.is-preview {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.flow-focus-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.flow-focus-kicker {
+  margin: 0 0 3px;
+  font-size: 10px;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.flow-focus-header h4 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #0f172a;
+}
+
+.flow-focus-state {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #0c4a6e;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.flow-focus-desc,
+.flow-focus-condition,
+.flow-inline-notice,
+.flow-preview-tip,
+.flow-branch-card-copy,
+.flow-branch-empty {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.flow-step-pill-branches,
+.flow-step-branch-map {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 5px;
+}
+
+.flow-step-branch-chip,
+.flow-step-branch-row {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 3px 7px 3px 14px;
+  border-radius: 12px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.flow-step-branch-map {
+  position: relative;
+  padding-left: 4px;
+}
+
+.flow-step-branch-stem {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 6px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0.2), rgba(59, 130, 246, 0.32), rgba(148, 163, 184, 0.2));
+}
+
+.flow-step-branch-row {
+  position: relative;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  border: 1px solid transparent;
+}
+
+.flow-step-branch-row::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  width: 8px;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.32;
+  transform: translateY(-50%);
+}
+
+.flow-step-branch-chip.tone-primary,
+.flow-step-branch-row.tone-primary {
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.16);
+}
+
+.flow-step-branch-chip.tone-success,
+.flow-step-branch-row.tone-success {
+  background: #dcfce7;
+  color: #166534;
+  border-color: rgba(34, 197, 94, 0.16);
+}
+
+.flow-step-branch-chip.tone-danger,
+.flow-step-branch-row.tone-danger {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: rgba(239, 68, 68, 0.16);
+}
+
+.flow-step-branch-key {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 16px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.flow-step-branch-link {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: right;
+  opacity: 0.88;
+}
+
+.flow-focus-condition {
+  color: #0f766e;
+}
+
+.flow-focus-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 120px));
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.flow-focus-media-item {
+  min-width: 0;
+}
+
+.flow-branch-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 0 0 2px;
+  min-height: 100%;
+}
+
+.flow-branch-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.flow-branch-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: #ffffff;
+  min-width: 0;
+}
+
+.flow-branch-card.tone-primary {
+  background: linear-gradient(180deg, #f8fbff 0%, #eff6ff 100%);
+  border-color: rgba(59, 130, 246, 0.18);
+}
+
+.flow-branch-card.tone-success {
+  background: linear-gradient(180deg, #f4fff7 0%, #ecfdf5 100%);
+  border-color: rgba(34, 197, 94, 0.18);
+}
+
+.flow-branch-card.tone-danger {
+  background: linear-gradient(180deg, #fff7f7 0%, #fef2f2 100%);
+  border-color: rgba(239, 68, 68, 0.18);
+}
+
+.flow-branch-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.flow-branch-chip,
+.flow-branch-kind {
+  display: inline-flex;
+  align-items: center;
+  min-height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.flow-branch-chip {
+  background: rgba(15, 23, 42, 0.06);
+  color: #0f172a;
+}
+
+.flow-branch-kind {
+  background: rgba(255, 255, 255, 0.65);
+  color: #475569;
+}
+
+.flow-branch-card-title {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 700;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.flow-action-button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.flow-action-button:hover {
+  transform: translateY(-1px);
+}
+
+.flow-action-button.tone-primary {
+  background: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(29, 78, 216, 0.22);
+}
+
+.flow-action-button.tone-success {
+  background: #15803d;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(21, 128, 61, 0.22);
+}
+
+.flow-action-button.tone-danger {
+  background: #b91c1c;
+  color: #ffffff;
+  box-shadow: 0 14px 28px rgba(185, 28, 28, 0.22);
+}
+
+.flow-action-button-label {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.flow-action-button-copy {
+  font-size: 10px;
+  line-height: 1.4;
+  opacity: 0.92;
+}
+
+.flow-inline-notice {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.flow-preview-tip,
+.flow-branch-empty {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.flow-repair-fallback-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.flow-repair-fallback-step {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.95);
+}
+
+.flow-repair-fallback-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.flow-repair-fallback-step p {
+  margin: 0;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .assistant-content-box {
+    width: min(calc(100% - 40px), 540px);
+  }
+
+  .flow-focus-layout {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    border: none;
+    background: transparent;
+  }
+
+  .flow-focus-side {
+    position: static;
+    padding: 0;
+    border-left: none;
+    background: transparent;
+  }
+
+  .flow-step-strip {
+    gap: 12px;
+  }
+
+  .flow-step-pill.has-next::after {
+    width: 8px;
+  }
+
+  .flow-focus-header,
+  .flow-branch-card-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .flow-step-pill {
+    min-width: 164px;
+    max-width: 180px;
+  }
+
+  .flow-focus-main {
+    padding: 0;
+  }
+
+  .flow-focus-media {
+    grid-template-columns: repeat(2, minmax(0, 72px));
+  }
+
+  .step-media-item {
+    min-height: 54px;
+    max-height: 54px;
+  }
+}
+
 </style>
+
+

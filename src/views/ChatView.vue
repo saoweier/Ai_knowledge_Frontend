@@ -434,7 +434,6 @@
           @update:options="(value) => options = value"
           @update:memory="(value) => memoryLimit = value"
           @update:voice-enabled="(value) => handleVoiceToggle(value)"
-          @voice-toggle="handleVoiceToggle"
           @mic-click="handleMicClick"
           @stop-speaking="stopSpeaking"
         />
@@ -473,6 +472,7 @@ const {
   lastError,
   voiceStateLabel,
   voiceStatusTone,
+  checkVoiceHealth,
   setVoiceEnabled,
   startWakeWordDetection,
   stopWakeWordDetection,
@@ -531,6 +531,20 @@ function summarizeSession(session) {
 }
 
 async function handleVoiceToggle(enabled) {
+  if (enabled) {
+    const health = await checkVoiceHealth()
+    if (!health.asrAvailable) {
+      ElMessage.warning('语音识别依赖未就绪，当前无法启用语音助手')
+      setVoiceEnabled(false)
+      stopWakeWordDetection()
+      stopSpeaking()
+      return
+    }
+    if (!health.ttsAvailable) {
+      ElMessage.info('当前仅可使用语音识别，语音播报未安装依赖')
+    }
+  }
+
   setVoiceEnabled(enabled)
   if (enabled) {
     await startWakeWordDetection(() => {
@@ -2013,13 +2027,13 @@ onMounted(() => {
 }
 
 .message-card {
-  width: min(100%, 980px);
+  width: min(100%, 680px);
   border-radius: 20px;
   padding: 14px 16px;
 }
 
 .user-card {
-  max-width: min(76%, 720px);
+  max-width: min(62%, 420px);
   background: linear-gradient(145deg, #1e6a61 0%, #174d46 100%);
   box-shadow: 0 18px 30px rgba(23, 72, 65, 0.16);
 }
@@ -2053,6 +2067,23 @@ onMounted(() => {
 .summary-grid {
   gap: 8px;
   margin-top: 10px;
+}
+
+.media-grid {
+  grid-template-columns: repeat(3, minmax(0, 112px));
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.media-item {
+  width: 112px;
+  min-width: 0;
+  min-height: 88px;
+  max-height: 88px;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  object-fit: cover;
 }
 
 .summary-card {
@@ -2134,11 +2165,23 @@ onMounted(() => {
   .message-card {
     width: 100%;
     border-radius: 18px;
-    padding: 13px 14px;
+    padding: 12px 13px;
   }
 
   .user-card {
     max-width: calc(100% - 6px);
+  }
+
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 96px)) !important;
+    gap: 8px;
+  }
+
+  .media-item {
+    width: 96px;
+    min-height: 72px;
+    max-height: 72px;
+    border-radius: 12px;
   }
 
   .message-body,
@@ -2151,6 +2194,18 @@ onMounted(() => {
   .step-card,
   .knowledge-card {
     padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .media-grid {
+    grid-template-columns: repeat(2, minmax(0, 84px)) !important;
+  }
+
+  .media-item {
+    width: 84px;
+    min-height: 64px;
+    max-height: 64px;
   }
 }
 </style>

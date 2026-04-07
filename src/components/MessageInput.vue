@@ -68,7 +68,6 @@
           <el-switch
             v-model="voiceEnabled"
             class="voice-switch"
-            @change="handleVoiceToggle"
           />
         </el-tooltip>
 
@@ -306,7 +305,6 @@ const emit = defineEmits([
   'update:memory',
   'update:voiceEnabled',
   'micClick',
-  'voiceToggle',
   'stopSpeaking'
 ])
 
@@ -371,10 +369,6 @@ function emitSend() {
     options: options.value
   })
   text.value = ''
-}
-
-function handleVoiceToggle(value) {
-  emit('voiceToggle', value)
 }
 </script>
 
